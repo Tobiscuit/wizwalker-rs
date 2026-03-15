@@ -1,32 +1,20 @@
-/// 3D position in game world coordinates
-#[derive(Debug, Clone, Copy, Default, PartialEq)]
+#[derive(Debug, Clone, Copy)]
 pub struct XYZ {
     pub x: f32,
     pub y: f32,
     pub z: f32,
 }
 
-/// Camera / entity orientation angles
-#[derive(Debug, Clone, Copy, Default, PartialEq)]
+#[derive(Debug, Clone, Copy)]
 pub struct Orient {
     pub pitch: f32,
     pub roll: f32,
     pub yaw: f32,
 }
 
-/// RGBA color
-#[derive(Debug, Clone, Copy, Default, PartialEq)]
-pub struct Color {
-    pub r: u8,
-    pub g: u8,
-    pub b: u8,
-    pub a: u8,
-}
-
-/// Windows Virtual Key codes
 #[allow(non_camel_case_types)]
 #[repr(u8)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Keycode {
     Left_mouse = 1,
     Right_mouse = 2,
@@ -100,6 +88,7 @@ pub enum Keycode {
     Left_Windows = 91,
     Right_Windows = 92,
     Applications = 93,
+    Reserved = 252,
     Computer_Sleep = 95,
     Numeric_pad_0 = 96,
     Numeric_pad_1 = 97,
@@ -129,5 +118,52 @@ pub enum Keycode {
     F10 = 121,
     F11 = 122,
     F12 = 123,
-    Reserved = 252,
+    F13 = 124,
+    F14 = 125,
+    F15 = 126,
+    F16 = 127,
+    F17 = 128,
+    F18 = 129,
+    F19 = 130,
+    F20 = 131,
+    F21 = 132,
+    F22 = 133,
+    F23 = 134,
+    F24 = 135,
+    NUM_LOCK = 144,
+    SCROLL_LOCK = 145,
+    Left_SHIFT = 160,
+    Right_SHIFT = 161,
+    Left_CONTROL = 162,
+    Right_CONTROL = 163,
+    Left_MENU = 164,
+    Right_MENU = 165,
+    Browser_Back = 166,
+    Browser_Forward = 167,
+    Browser_Refresh = 168,
+    Browser_Stop = 169,
+    Browser_Search = 170,
+    Browser_Favorites = 171,
+    Browser_Start_and_Home = 172,
+    Volume_Mute = 173,
+    Volume_Down = 174,
+    Volume_Up = 175,
+    Next_Track = 176,
+    Previous_Track = 177,
+    Stop_Media = 178,
+    Play_Pause_Media = 179,
+    Start_Mail = 180,
+    Select_Media = 181,
+    Start_Application_1 = 182,
+    Start_Application_2 = 183,
+    OEM_specific = 230,
+    IME_PROCESS = 229,
+    Attn = 246,
+    CrSel = 247,
+    ExSel = 248,
+    Erase_EOF = 249,
+    Play = 250,
+    Zoom = 251,
+    PA1 = 253,
+    Clear = 254,
 }

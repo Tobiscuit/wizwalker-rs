@@ -1,7 +1,6 @@
-// Number of speed units covered per second by a Wizard101 character
+// Number of units covered in 1 second
 pub const WIZARD_SPEED: u32 = 580;
 
-/// Primitive type discriminants, used for typed memory reads
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Primitive {
     Bool,
