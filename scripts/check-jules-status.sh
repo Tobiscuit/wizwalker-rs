@@ -16,37 +16,59 @@ fi
 echo "🧙 Checking Jules session status..."
 echo ""
 
-# Fetch sessions via the Jules REST API
+# Fetch all sessions (paginate if needed)
 RESPONSE=$(curl -s \
     -H "x-goog-api-key: $JULES_API_KEY" \
-    "https://jules.googleapis.com/v1alpha/sessions?pageSize=20")
+    "https://jules.googleapis.com/v1alpha/sessions?pageSize=50")
 
-# Parse and display
-echo "$RESPONSE" | jq -r '
-    .sessions // [] | sort_by(.createTime) | .[] |
-    "[\(.state // "UNKNOWN" | 
-        if . == "COMPLETED" then "✅"
-        elif . == "WORKING" then "⏳"
-        elif . == "FAILED" then "❌"
-        elif . == "PENDING" then "🕐"
-        else "❓"
-        end
-    )] \(.title // "Untitled") — \(.state // "unknown")"
-'
+# Parse and display — using real API state names confirmed from live call
+echo "$RESPONSE" | python3 -c "
+import sys, json
+d = json.load(sys.stdin)
+sessions = sorted(d.get('sessions', []), key=lambda s: s.get('createTime', ''))
+
+needs_feedback = []
+for s in sessions:
+    state = s.get('state', 'UNKNOWN')
+    title = s.get('title', 'Untitled')
+    url = s.get('url', '')
+
+    if state == 'COMPLETED':
+        icon = '✅'
+    elif state == 'IN_PROGRESS':
+        icon = '⏳'
+    elif state == 'FAILED':
+        icon = '❌'
+    elif state == 'AWAITING_USER_FEEDBACK':
+        icon = '🙋'
+        needs_feedback.append((title, url))
+    else:
+        icon = '❓'
+
+    print(f'[{icon}] {title} — {state}')
+
+if needs_feedback:
+    print()
+    print('⚠️  NEEDS YOUR FEEDBACK (Jules is waiting):')
+    for title, url in needs_feedback:
+        print(f'   {title}')
+        print(f'   → {url}')
+"
 
 echo ""
 
-# Summary counts
-TOTAL=$(echo "$RESPONSE" | jq '.sessions // [] | length')
-COMPLETED=$(echo "$RESPONSE" | jq '[.sessions // [] | .[] | select(.state == "COMPLETED")] | length')
-WORKING=$(echo "$RESPONSE" | jq '[.sessions // [] | .[] | select(.state == "WORKING")] | length')
-FAILED=$(echo "$RESPONSE" | jq '[.sessions // [] | .[] | select(.state == "FAILED")] | length')
-PENDING=$(echo "$RESPONSE" | jq '[.sessions // [] | .[] | select(.state == "PENDING")] | length')
-
-echo "═══════════════════════════════════════"
-echo "  📊 Total:     $TOTAL"
-echo "  ✅ Completed: $COMPLETED"
-echo "  ⏳ Working:   $WORKING"
-echo "  🕐 Pending:   $PENDING"
-echo "  ❌ Failed:    $FAILED"
-echo "═══════════════════════════════════════"
+# Summary counts using python3 (more reliable than jq for this)
+python3 -c "
+import sys, json
+d = json.load(sys.stdin)
+sessions = d.get('sessions', [])
+from collections import Counter
+counts = Counter(s.get('state', 'UNKNOWN') for s in sessions)
+print('═' * 39)
+print(f\"  📊 Total:              {len(sessions)}\")
+print(f\"  ✅ Completed:          {counts.get('COMPLETED', 0)}\")
+print(f\"  ⏳ In Progress:        {counts.get('IN_PROGRESS', 0)}\")
+print(f\"  🙋 Awaiting Feedback:  {counts.get('AWAITING_USER_FEEDBACK', 0)}\")
+print(f\"  ❌ Failed:             {counts.get('FAILED', 0)}\")
+print('═' * 39)
+" <<< "$RESPONSE"
