@@ -10,10 +10,35 @@ env:
   CARGO_TERM_COLOR: always
   RUSTFLAGS: "-Dwarnings"
 
-jobs:
+# ─────────────────────────────────────────────────────────────
+# TIER 1 — Runs on every PR
+# Only checks things that work on partial/incomplete code.
+# Jules PRs won't compile end-to-end until all 12 are merged,
+# so we don't pretend they should.
+# ─────────────────────────────────────────────────────────────
+
+  # Format is always checkable regardless of missing types
+  fmt:
+    name: "PR · Format Check"
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@v1
+        with:
+          toolchain: stable
+          components: rustfmt
+      - run: cargo fmt --all -- --check
+
+# ─────────────────────────────────────────────────────────────
+# TIER 2 — Runs only on push to main (after merging)
+# Full validation suite. Windows required for Win32 APIs.
+# ─────────────────────────────────────────────────────────────
+
   check:
-    name: Cargo Check
-    runs-on: windows-latest  # Must be Windows — we use Win32 APIs
+    name: "Main · Cargo Check"
+    runs-on: windows-latest
+    if: github.event_name == 'push'
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@v1
@@ -23,8 +48,9 @@ jobs:
       - run: cargo check --workspace --all-targets
 
   clippy:
-    name: Clippy Lint
+    name: "Main · Clippy"
     runs-on: windows-latest
+    if: github.event_name == 'push'
     needs: check
     steps:
       - uses: actions/checkout@v4
@@ -35,20 +61,10 @@ jobs:
       - uses: Swatinem/rust-cache@v2.8.2
       - run: cargo clippy --workspace --all-targets -- -D warnings
 
-  fmt:
-    name: Format Check
-    runs-on: ubuntu-latest  # Formatting doesn't need Windows
-    steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@v1
-        with:
-          toolchain: stable
-          components: rustfmt
-      - run: cargo fmt --all -- --check
-
   test:
-    name: Tests
+    name: "Main · Tests"
     runs-on: windows-latest
+    if: github.event_name == 'push'
     needs: check
     steps:
       - uses: actions/checkout@v4
@@ -58,10 +74,10 @@ jobs:
       - uses: Swatinem/rust-cache@v2.8.2
       - run: cargo test --workspace
 
-  # Audit dependencies for known vulnerabilities
   audit:
-    name: Security Audit
+    name: "Main · Security Audit"
     runs-on: ubuntu-latest
+    if: github.event_name == 'push'
     steps:
       - uses: actions/checkout@v4
       - uses: rustsec/audit-check@v1
