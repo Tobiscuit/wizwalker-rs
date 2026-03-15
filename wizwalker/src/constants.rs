@@ -1,1 +1,1 @@
-// TODO: Port from Python
+// Constants
