@@ -1,0 +1,26 @@
+{
+  "resource": {
+    "name": "sessions/9109336372168914774",
+    "title": "Task 8: Memory Objects — Camera, Quest, UI, Misc (Batch 4)",
+    "sourceContext": {
+      "source": "sources/github/Tobiscuit/wizwalker-rs",
+      "githubRepoContext": {
+        "startingBranch": "main"
+      }
+    },
+    "prompt": "IMPORTANT: The following types already exist in this repo on main — import them, do NOT redefine them:\n- crate::errors::{Result, WizWalkerError}\n- crate::types::{XYZ, Orient, Color, Keycode}\n- crate::memory::memory_object::{MemoryObject, MemoryReader, DynamicMemoryObject}\nContext7 is available if needed for crate docs. Proceed using windows-rs, tokio, thiserror, bitflags as needed.\nPort remaining memory objects from Python to Rust.\n\nSource files (all from https://github.com/LaurenzLikeThat/wizwalker/blob/development/wizwalker/memory/memory_objects/):\ncamera_controller.py, cam_view.py, gamebryo_camera.py, gamebryo_presenter.py,\nquest_client_manager.py, quest_data.py, quest_position.py, goal_data.py,\nwindow.py, render_context.py, scene_manager.py, teleport_helper.py,\nconditionals.py, madlib_arg.py, madlib_block.py,\nfish.py, fish_template.py, fishing_manager.py, client_tag_list.py\n\nEach maps to a .rs file in wizwalker/src/memory/objects/. Same MemoryObject wrapper pattern.\nPreserve ALL offset values exactly. Create/update objects/mod.rs to re-export everything.\nRun cargo check before submitting the PR.",
+    "url": "https://jules.google.com/session/9109336372168914774",
+    "id": "9109336372168914774",
+    "automationMode": "AUTO_CREATE_PR",
+    "archived": false,
+    "state": "unspecified",
+    "outputs": [],
+    "outcome": {
+      "sessionId": "9109336372168914774",
+      "title": "Task 8: Memory Objects — Camera, Quest, UI, Misc (Batch 4)",
+      "state": "completed",
+      "outputs": []
+    }
+  },
+  "_lastSyncedAt": 1773617031599
+}

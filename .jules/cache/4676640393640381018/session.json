@@ -1,0 +1,26 @@
+{
+  "resource": {
+    "name": "sessions/4676640393640381018",
+    "title": "Task 7: Memory Objects — Equipment, Behavior, Stats (Batch 3)",
+    "sourceContext": {
+      "source": "sources/github/Tobiscuit/wizwalker-rs",
+      "githubRepoContext": {
+        "startingBranch": "main"
+      }
+    },
+    "prompt": "IMPORTANT: You have access to the context7 MCP server. Before writing ANY Rust code, use context7 to look up the latest documentation for the crates you are using. Look up: windows-rs, tokio, thiserror, bitflags, byteorder. Always verify crate APIs against context7 docs.\n\nIMPORTANT: The following types are already defined in this repo on main — import them, do NOT redefine them:\n- crate::errors::{Result, WizWalkerError}\n- crate::types::{XYZ, Orient, Color, Keycode}\n- crate::memory::memory_object::{MemoryObject, MemoryReader, DynamicMemoryObject}\n\nPort equipment, behavior, and stats memory objects from Python to Rust.\n\nSource files (all from https://github.com/LaurenzLikeThat/wizwalker/blob/development/wizwalker/memory/memory_objects/):\n- behavior_instance.py → objects/behavior_instance.rs\n- behavior_template.py → objects/behavior_template.rs\n- equipment_behavior.py → objects/equipment_behavior.rs\n- equipment_set.py → objects/equipment_set.rs\n- equipped_item_info.py → objects/equipped_item_info.rs\n- equipped_slot_info.py → objects/equipped_slot_info.rs\n- game_stats.py → objects/game_stats.rs\n- inventory_behavior.py → objects/inventory_behavior.rs\n- character_registry.py → objects/character_registry.rs\n- game_object_template.py → objects/game_object_template.rs\n\nSame MemoryObject wrapper pattern (trait already exists in memory/memory_object.rs). Preserve ALL offset values exactly. Update objects/mod.rs.",
+    "url": "https://jules.google.com/session/4676640393640381018",
+    "id": "4676640393640381018",
+    "automationMode": "AUTO_CREATE_PR",
+    "archived": false,
+    "state": "unspecified",
+    "outputs": [],
+    "outcome": {
+      "sessionId": "4676640393640381018",
+      "title": "Task 7: Memory Objects — Equipment, Behavior, Stats (Batch 3)",
+      "state": "completed",
+      "outputs": []
+    }
+  },
+  "_lastSyncedAt": 1773601880931
+}
