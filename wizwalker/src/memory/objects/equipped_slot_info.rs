@@ -1,0 +1,40 @@
+use crate::errors::Result;
+use crate::memory::memory_object::{DynamicMemoryObject, MemoryObject};
+
+pub struct EquippedSlotInfo {
+    inner: DynamicMemoryObject,
+}
+
+impl EquippedSlotInfo {
+    pub fn new(reader: std::sync::Arc<dyn crate::memory::memory_object::MemoryReader>, base_address: u64) -> Result<Self> {
+        Ok(Self {
+            inner: DynamicMemoryObject::new(reader, base_address)?,
+        })
+    }
+
+    pub fn item_id(&self) -> Result<u64> {
+        self.read_value_from_offset(72)
+    }
+
+    pub fn write_item_id(&self, val: u64) -> Result<()> {
+        self.write_value_to_offset(72, &val)
+    }
+
+    pub fn item_slot_name_id(&self) -> Result<u32> {
+        self.read_value_from_offset(80)
+    }
+
+    pub fn write_item_slot_name_id(&self, val: u32) -> Result<()> {
+        self.write_value_to_offset(80, &val)
+    }
+}
+
+impl MemoryObject for EquippedSlotInfo {
+    fn reader(&self) -> std::sync::Arc<dyn crate::memory::memory_object::MemoryReader> {
+        self.inner.reader()
+    }
+
+    fn read_base_address(&self) -> Result<u64> {
+        self.inner.read_base_address()
+    }
+}
