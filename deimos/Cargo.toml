@@ -1,0 +1,15 @@
+[package]
+name = "deimos"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+wizwalker = { path = "../wizwalker" }
+tokio = { version = "1", features = ["full"] }
+eframe = "0.31"
+egui = "0.31"
+tracing = "0.1"
+tracing-subscriber = "0.3"
+serde = { version = "1", features = ["derive"] }
+configparser = "3"
+discord-rich-presence = "0.2"
