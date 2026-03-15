@@ -1,38 +1,26 @@
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub struct XYZ {
-    pub x: f32,
-    pub y: f32,
-    pub z: f32,
+use crate::errors::Result;
+
+pub struct Point(pub i32, pub i32);
+
+pub struct Rect {
+    pub left: i32,
+    pub top: i32,
+    pub right: i32,
+    pub bottom: i32,
 }
 
-impl XYZ {
-    pub fn new(x: f32, y: f32, z: f32) -> Self {
-        Self { x, y, z }
+impl Rect {
+    pub fn center(&self) -> (i32, i32) {
+        (
+            self.left + (self.right - self.left) / 2,
+            self.top + (self.bottom - self.top) / 2,
+        )
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub struct Orient {
-    pub pitch: f32,
-    pub roll: f32,
-    pub yaw: f32,
-}
-
-impl Orient {
-    pub fn new(pitch: f32, roll: f32, yaw: f32) -> Self {
-        Self { pitch, roll, yaw }
-    }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct Color {
-    pub r: u8,
-    pub g: u8,
-    pub b: u8,
-}
-
-impl Color {
-    pub fn new(r: u8, g: u8, b: u8) -> Self {
-        Self { r, g, b }
+pub struct DynamicWindow;
+impl DynamicWindow {
+    pub async fn scale_to_client(&self) -> Result<Rect> {
+        Ok(Rect { left: 0, top: 0, right: 100, bottom: 100 })
     }
 }
