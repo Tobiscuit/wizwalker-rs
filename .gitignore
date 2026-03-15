@@ -4,3 +4,5 @@ target/
 target
 wizwalker/target
 >>>>>>> origin/port-wizwalker-memory-objects-6518915373428707039
+node_modules/
+package-lock.json
