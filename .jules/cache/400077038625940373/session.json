@@ -1,0 +1,26 @@
+{
+  "resource": {
+    "name": "sessions/400077038625940373",
+    "title": "Task 1: Project Skeleton + Errors + Constants + Types",
+    "sourceContext": {
+      "source": "sources/github/Tobiscuit/wizwalker-rs",
+      "githubRepoContext": {
+        "startingBranch": "main"
+      }
+    },
+    "prompt": "IMPORTANT: You have access to the context7 MCP server. Before writing ANY Rust code, use context7 to look up the latest documentation for the crates you are using:\n- Use \"Resolve Context7 Library ID\" to find library IDs, then \"Query Documentation\" to get up-to-date API docs and examples.\n- Look up: \"windows-rs\" (for Win32 API bindings), \"tokio\" (for async runtime), \"thiserror\" (for error types), \"bitflags\" (for flag enums), \"byteorder\" (for binary parsing).\n- For Phase 2 tasks, also look up: \"egui\" and \"eframe\" (for GUI), \"serde\" (for serialization), \"configparser\" (for INI parsing).\n- Always verify crate APIs against context7 docs rather than guessing from memory.\n\nPort the WizWalker foundation files from Python to Rust in this repo.\n\nSource files:\n- https://github.com/LaurenzLikeThat/wizwalker/blob/development/wizwalker/errors.py → src/errors.rs (convert all exception types to a Rust enum using thiserror)\n- https://github.com/LaurenzLikeThat/wizwalker/blob/development/wizwalker/constants.py → src/constants.rs (convert all constants, preserve exact values)\n- https://github.com/LaurenzLikeThat/wizwalker/blob/development/wizwalker/__init__.py → update src/lib.rs with public module declarations and re-exports\n\nAlso create src/types.rs with shared types:\n- XYZ struct (x: f32, y: f32, z: f32) with Debug, Clone, Copy derives\n- Orient struct (pitch: f32, roll: f32, yaw: f32)\n- Keycode enum matching the Python version exactly\n\nPreserve all doc comments. The existing Cargo.toml already has the right dependencies configured.\nUpdate lib.rs to declare all modules (pub mod errors; pub mod constants; pub mod types; etc).",
+    "url": "https://jules.google.com/session/400077038625940373",
+    "id": "400077038625940373",
+    "automationMode": "AUTO_CREATE_PR",
+    "archived": false,
+    "state": "unspecified",
+    "outputs": [],
+    "outcome": {
+      "sessionId": "400077038625940373",
+      "title": "Task 1: Project Skeleton + Errors + Constants + Types",
+      "state": "completed",
+      "outputs": []
+    }
+  },
+  "_lastSyncedAt": 1773542551640
+}

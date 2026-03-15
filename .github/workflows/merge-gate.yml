@@ -1,0 +1,44 @@
+name: Merge Gate
+
+# This workflow runs AFTER merging Jules PRs to verify
+# the full project compiles when all pieces are together.
+
+on:
+  workflow_dispatch:  # Manual trigger
+  push:
+    branches: [main]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  full-build:
+    name: Full Build Verification
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Build entire workspace
+        run: cargo build --workspace
+
+      - name: Run all tests
+        run: cargo test --workspace
+
+      - name: Generate build summary
+        if: always()
+        shell: bash
+        run: |
+          echo "## Build Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Crate | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|-------|--------|" >> $GITHUB_STEP_SUMMARY
+          
+          for crate in wizwalker deimos; do
+            if cargo check -p $crate 2>/dev/null; then
+              echo "| $crate | ✅ Compiles |" >> $GITHUB_STEP_SUMMARY
+            else
+              echo "| $crate | ❌ Errors |" >> $GITHUB_STEP_SUMMARY
+            fi
+          done

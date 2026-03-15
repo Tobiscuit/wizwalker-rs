@@ -1,0 +1,26 @@
+{
+  "resource": {
+    "name": "sessions/16678679771943186145",
+    "title": "Task 3: Hook System",
+    "sourceContext": {
+      "source": "sources/github/Tobiscuit/wizwalker-rs",
+      "githubRepoContext": {
+        "startingBranch": "main"
+      }
+    },
+    "prompt": "IMPORTANT: You have access to the context7 MCP server. Before writing ANY Rust code, use context7 to look up the latest documentation for the crates you are using:\n- Use \"Resolve Context7 Library ID\" to find library IDs, then \"Query Documentation\" to get up-to-date API docs and examples.\n- Look up: \"windows-rs\" (for Win32 API bindings), \"tokio\" (for async runtime), \"thiserror\" (for error types), \"bitflags\" (for flag enums), \"byteorder\" (for binary parsing).\n- For Phase 2 tasks, also look up: \"egui\" and \"eframe\" (for GUI), \"serde\" (for serialization), \"configparser\" (for INI parsing).\n- Always verify crate APIs against context7 docs rather than guessing from memory.\n\nPort the WizWalker hook system from Python to Rust. This is the MOST CRITICAL task.\n\nSource files:\n- https://github.com/LaurenzLikeThat/wizwalker/blob/development/wizwalker/memory/hooks.py → wizwalker/src/memory/hooks.rs\n- https://github.com/LaurenzLikeThat/wizwalker/blob/development/wizwalker/memory/handler.py → wizwalker/src/memory/handler.rs\n\nFor hooks.rs: Create a MemoryHook trait with methods (hook, unhook, bytes_to_write, pattern, pattern_offset, hook_size). Implement concrete hooks: PlayerHook, QuestHook, ClientHook, RootWindowHook, RenderContextHook, MouselessCursorMoveHook, MovementTeleportHook, PlayerStatHook.\n\nCRITICAL: Copy ALL byte patterns, shellcode bytes, jump instructions, and offsets EXACTLY from the Python source. These are raw x86-64 machine code. Use byte array constants: const PATTERN: &[u8] = &[0x48, 0x89, 0x5C, ...];\n\nFor handler.rs: Port HookHandler including AUTOBOT_PATTERN/AUTOBOT_SIZE constants (exact bytes), prepare/rewrite autobot lifecycle, allocate_autobot_bytes, activate/deactivate hooks, hook base address reading, wait_for_value polling, close().\n\nEvery single byte must match the Python source exactly. This is injected machine code.",
+    "url": "https://jules.google.com/session/16678679771943186145",
+    "id": "16678679771943186145",
+    "automationMode": "AUTO_CREATE_PR",
+    "archived": false,
+    "state": "unspecified",
+    "outputs": [],
+    "outcome": {
+      "sessionId": "16678679771943186145",
+      "title": "Task 3: Hook System",
+      "state": "completed",
+      "outputs": []
+    }
+  },
+  "_lastSyncedAt": 1773542558789
+}

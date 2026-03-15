@@ -1,0 +1,26 @@
+{
+  "resource": {
+    "name": "sessions/5322262872671007761",
+    "title": "Task 12: Combat Module + Utils",
+    "sourceContext": {
+      "source": "sources/github/Tobiscuit/wizwalker-rs",
+      "githubRepoContext": {
+        "startingBranch": "main"
+      }
+    },
+    "prompt": "IMPORTANT: You have access to the context7 MCP server. Before writing ANY Rust code, use context7 to look up the latest documentation for the crates you are using:\n- Use \"Resolve Context7 Library ID\" to find library IDs, then \"Query Documentation\" to get up-to-date API docs and examples.\n- Look up: \"windows-rs\" (for Win32 API bindings), \"tokio\" (for async runtime), \"thiserror\" (for error types), \"bitflags\" (for flag enums), \"byteorder\" (for binary parsing).\n- For Phase 2 tasks, also look up: \"egui\" and \"eframe\" (for GUI), \"serde\" (for serialization), \"configparser\" (for INI parsing).\n- Always verify crate APIs against context7 docs rather than guessing from memory.\n\nPort WizWalker combat module and utils from Python to Rust.\n\nSource files:\n- https://github.com/LaurenzLikeThat/wizwalker/blob/development/wizwalker/combat/card.py → wizwalker/src/combat/card.rs\n- https://github.com/LaurenzLikeThat/wizwalker/blob/development/wizwalker/combat/handler.py → wizwalker/src/combat/handler.rs\n- https://github.com/LaurenzLikeThat/wizwalker/blob/development/wizwalker/combat/member.py → wizwalker/src/combat/member.rs\n- https://github.com/LaurenzLikeThat/wizwalker/blob/development/wizwalker/utils.py → wizwalker/src/utils.rs\n\nUtils: get_all_wizard_handles, get_foreground_window etc using windows crate (GetForegroundWindow, EnumWindows, GetWindowTextW). Update combat/mod.rs.",
+    "url": "https://jules.google.com/session/5322262872671007761",
+    "id": "5322262872671007761",
+    "automationMode": "AUTO_CREATE_PR",
+    "archived": false,
+    "state": "unspecified",
+    "outputs": [],
+    "outcome": {
+      "sessionId": "5322262872671007761",
+      "title": "Task 12: Combat Module + Utils",
+      "state": "completed",
+      "outputs": []
+    }
+  },
+  "_lastSyncedAt": 1773542562774
+}

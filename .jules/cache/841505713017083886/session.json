@@ -1,0 +1,26 @@
+{
+  "resource": {
+    "name": "sessions/841505713017083886",
+    "title": "Task 6: Memory Objects — Combat & Spells (Batch 2)",
+    "sourceContext": {
+      "source": "sources/github/Tobiscuit/wizwalker-rs",
+      "githubRepoContext": {
+        "startingBranch": "main"
+      }
+    },
+    "prompt": "IMPORTANT: You have access to the context7 MCP server. Before writing ANY Rust code, use context7 to look up the latest documentation for the crates you are using:\n- Use \"Resolve Context7 Library ID\" to find library IDs, then \"Query Documentation\" to get up-to-date API docs and examples.\n- Look up: \"windows-rs\" (for Win32 API bindings), \"tokio\" (for async runtime), \"thiserror\" (for error types), \"bitflags\" (for flag enums), \"byteorder\" (for binary parsing).\n- For Phase 2 tasks, also look up: \"egui\" and \"eframe\" (for GUI), \"serde\" (for serialization), \"configparser\" (for INI parsing).\n- Always verify crate APIs against context7 docs rather than guessing from memory.\n\nPort combat and spell memory objects from Python to Rust.\n\nSource files (all from https://github.com/LaurenzLikeThat/wizwalker/blob/development/wizwalker/memory/memory_objects/):\n- combat_action.py → objects/combat_action.rs\n- combat_participant.py → objects/combat_participant.rs\n- combat_resolver.py → objects/combat_resolver.rs\n- client_duel_manager.py → objects/client_duel_manager.rs\n- duel.py → objects/duel.rs\n- spell.py → objects/spell.rs\n- spell_effect.py → objects/spell_effect.rs\n- spell_rank.py → objects/spell_rank.rs\n- spell_template.py → objects/spell_template.rs\n- play_deck.py → objects/play_deck.rs\n- pip_count.py → objects/pip_count.rs\n\nSame MemoryObject wrapper pattern. Preserve ALL offset values exactly. Handle linked-list and array-style reads. Update objects/mod.rs.",
+    "url": "https://jules.google.com/session/841505713017083886",
+    "id": "841505713017083886",
+    "automationMode": "AUTO_CREATE_PR",
+    "archived": false,
+    "state": "unspecified",
+    "outputs": [],
+    "outcome": {
+      "sessionId": "841505713017083886",
+      "title": "Task 6: Memory Objects — Combat & Spells (Batch 2)",
+      "state": "completed",
+      "outputs": []
+    }
+  },
+  "_lastSyncedAt": 1773542571189
+}

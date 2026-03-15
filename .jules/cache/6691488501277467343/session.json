@@ -1,0 +1,26 @@
+{
+  "resource": {
+    "name": "sessions/6691488501277467343",
+    "title": "Task 9: Client + ClientHandler",
+    "sourceContext": {
+      "source": "sources/github/Tobiscuit/wizwalker-rs",
+      "githubRepoContext": {
+        "startingBranch": "main"
+      }
+    },
+    "prompt": "IMPORTANT: You have access to the context7 MCP server. Before writing ANY Rust code, use context7 to look up the latest documentation for the crates you are using:\n- Use \"Resolve Context7 Library ID\" to find library IDs, then \"Query Documentation\" to get up-to-date API docs and examples.\n- Look up: \"windows-rs\" (for Win32 API bindings), \"tokio\" (for async runtime), \"thiserror\" (for error types), \"bitflags\" (for flag enums), \"byteorder\" (for binary parsing).\n- For Phase 2 tasks, also look up: \"egui\" and \"eframe\" (for GUI), \"serde\" (for serialization), \"configparser\" (for INI parsing).\n- Always verify crate APIs against context7 docs rather than guessing from memory.\n\nPort WizWalker client and client handler from Python to Rust.\n\nSource files:\n- https://github.com/LaurenzLikeThat/wizwalker/blob/development/wizwalker/client.py → wizwalker/src/client.rs\n- https://github.com/LaurenzLikeThat/wizwalker/blob/development/wizwalker/client_handler.py → wizwalker/src/client_handler.rs\n\nClient struct: process handle, window handle, HookHandler ref, title, process_id. Methods: open(), close(), teleport(), send_key(), zone_name(), body position access, freecam methods (camera_freecam, camera_elastic). Properties delegating to memory objects.\n\nClientHandler: discovers Wizard101 windows via FindWindowExW/EnumWindows/GetWindowThreadProcessId/OpenProcess. Creates and manages Client instances. All async.",
+    "url": "https://jules.google.com/session/6691488501277467343",
+    "id": "6691488501277467343",
+    "automationMode": "AUTO_CREATE_PR",
+    "archived": false,
+    "state": "unspecified",
+    "outputs": [],
+    "outcome": {
+      "sessionId": "6691488501277467343",
+      "title": "Task 9: Client + ClientHandler",
+      "state": "completed",
+      "outputs": []
+    }
+  },
+  "_lastSyncedAt": 1773542560764
+}

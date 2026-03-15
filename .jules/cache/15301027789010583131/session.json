@@ -1,0 +1,26 @@
+{
+  "resource": {
+    "name": "sessions/15301027789010583131",
+    "title": "Task 2: Memory Reader",
+    "sourceContext": {
+      "source": "sources/github/Tobiscuit/wizwalker-rs",
+      "githubRepoContext": {
+        "startingBranch": "main"
+      }
+    },
+    "prompt": "IMPORTANT: You have access to the context7 MCP server. Before writing ANY Rust code, use context7 to look up the latest documentation for the crates you are using:\n- Use \"Resolve Context7 Library ID\" to find library IDs, then \"Query Documentation\" to get up-to-date API docs and examples.\n- Look up: \"windows-rs\" (for Win32 API bindings), \"tokio\" (for async runtime), \"thiserror\" (for error types), \"bitflags\" (for flag enums), \"byteorder\" (for binary parsing).\n- For Phase 2 tasks, also look up: \"egui\" and \"eframe\" (for GUI), \"serde\" (for serialization), \"configparser\" (for INI parsing).\n- Always verify crate APIs against context7 docs rather than guessing from memory.\n\nPort the WizWalker memory reader from Python to Rust.\n\nSource: https://github.com/LaurenzLikeThat/wizwalker/blob/development/wizwalker/memory/memory_reader.py → wizwalker/src/memory/reader.rs\n\nImplement a MemoryReader struct wrapping a Windows process handle (from the windows crate) with these async methods:\n- read_bytes(address, size) via ReadProcessMemory\n- write_bytes(address, data) via WriteProcessMemory  \n- read_typed<T>(address) for i8/i16/i32/i64/u8/u16/u32/u64/f32/f64/bool\n- write_typed<T>(address, value)\n- read_null_terminated_string(address, max_len)\n- read_wide_string(address, max_len) (UTF-16)\n- pattern_scan(pattern, module) — byte pattern scan with wildcard support (wildcard = 0x2E). Use EnumProcessModulesEx + GetModuleInformation.\n- allocate(size) via VirtualAllocEx\n- free(address) via VirtualFreeEx\n\nCRITICAL: Copy all byte patterns EXACTLY as they appear in the Python source. Do not modify any hex values.\nUse the windows crate for Win32 API. All methods async via tokio. Update memory/mod.rs.",
+    "url": "https://jules.google.com/session/15301027789010583131",
+    "id": "15301027789010583131",
+    "automationMode": "AUTO_CREATE_PR",
+    "archived": false,
+    "state": "unspecified",
+    "outputs": [],
+    "outcome": {
+      "sessionId": "15301027789010583131",
+      "title": "Task 2: Memory Reader",
+      "state": "completed",
+      "outputs": []
+    }
+  },
+  "_lastSyncedAt": 1773542566808
+}

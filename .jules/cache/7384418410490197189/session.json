@@ -1,0 +1,26 @@
+{
+  "resource": {
+    "name": "sessions/7384418410490197189",
+    "title": "Task 5: Memory Objects — Player & Core (Batch 1)",
+    "sourceContext": {
+      "source": "sources/github/Tobiscuit/wizwalker-rs",
+      "githubRepoContext": {
+        "startingBranch": "main"
+      }
+    },
+    "prompt": "IMPORTANT: You have access to the context7 MCP server. Before writing ANY Rust code, use context7 to look up the latest documentation for the crates you are using:\n- Use \"Resolve Context7 Library ID\" to find library IDs, then \"Query Documentation\" to get up-to-date API docs and examples.\n- Look up: \"windows-rs\" (for Win32 API bindings), \"tokio\" (for async runtime), \"thiserror\" (for error types), \"bitflags\" (for flag enums), \"byteorder\" (for binary parsing).\n- For Phase 2 tasks, also look up: \"egui\" and \"eframe\" (for GUI), \"serde\" (for serialization), \"configparser\" (for INI parsing).\n- Always verify crate APIs against context7 docs rather than guessing from memory.\n\nPort the first batch of WizWalker memory object wrappers from Python to Rust.\n\nSource files (all from https://github.com/LaurenzLikeThat/wizwalker/blob/development/wizwalker/memory/memory_objects/):\n- actor_body.py → objects/actor_body.rs\n- client_object.py → objects/client_object.rs\n- core_object.py → objects/core_object.rs\n- core_template.py → objects/core_template.rs\n- game_client.py → objects/game_client.rs\n- client_zone.py → objects/client_zone.rs\n- enums.py → objects/enums.rs\n\nEach wraps a MemoryObject with async methods reading typed values at specific offsets. CRITICAL: Preserve ALL offset values exactly. Convert Python IntEnum/Flag to Rust enums with repr(i32) or bitflags! macro. Update objects/mod.rs.",
+    "url": "https://jules.google.com/session/7384418410490197189",
+    "id": "7384418410490197189",
+    "automationMode": "AUTO_CREATE_PR",
+    "archived": false,
+    "state": "unspecified",
+    "outputs": [],
+    "outcome": {
+      "sessionId": "7384418410490197189",
+      "title": "Task 5: Memory Objects — Player & Core (Batch 1)",
+      "state": "completed",
+      "outputs": []
+    }
+  },
+  "_lastSyncedAt": 1773542548619
+}

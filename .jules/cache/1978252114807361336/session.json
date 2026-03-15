@@ -1,0 +1,26 @@
+{
+  "resource": {
+    "name": "sessions/1978252114807361336",
+    "title": "Task 10: Mouse Handler + Hotkey Listener",
+    "sourceContext": {
+      "source": "sources/github/Tobiscuit/wizwalker-rs",
+      "githubRepoContext": {
+        "startingBranch": "main"
+      }
+    },
+    "prompt": "IMPORTANT: You have access to the context7 MCP server. Before writing ANY Rust code, use context7 to look up the latest documentation for the crates you are using:\n- Use \"Resolve Context7 Library ID\" to find library IDs, then \"Query Documentation\" to get up-to-date API docs and examples.\n- Look up: \"windows-rs\" (for Win32 API bindings), \"tokio\" (for async runtime), \"thiserror\" (for error types), \"bitflags\" (for flag enums), \"byteorder\" (for binary parsing).\n- For Phase 2 tasks, also look up: \"egui\" and \"eframe\" (for GUI), \"serde\" (for serialization), \"configparser\" (for INI parsing).\n- Always verify crate APIs against context7 docs rather than guessing from memory.\n\nPort WizWalker input simulation from Python to Rust.\n\nSource files:\n- https://github.com/LaurenzLikeThat/wizwalker/blob/development/wizwalker/mouse_handler.py → wizwalker/src/mouse_handler.rs\n- https://github.com/LaurenzLikeThat/wizwalker/blob/development/wizwalker/hotkey.py → wizwalker/src/hotkey.rs\n\nMouseHandler: simulates mouse input via PostMessageW/SendMessageW (WM_LBUTTONDOWN/UP, WM_MOUSEMOVE). RAII guard pattern.\n\nHotkeyListener: RegisterHotKey/UnregisterHotKey, async callbacks, modifier key support, runs on own thread dispatching to tokio. Use windows crate for all Win32 calls.",
+    "url": "https://jules.google.com/session/1978252114807361336",
+    "id": "1978252114807361336",
+    "automationMode": "AUTO_CREATE_PR",
+    "archived": false,
+    "state": "unspecified",
+    "outputs": [],
+    "outcome": {
+      "sessionId": "1978252114807361336",
+      "title": "Task 10: Mouse Handler + Hotkey Listener",
+      "state": "completed",
+      "outputs": []
+    }
+  },
+  "_lastSyncedAt": 1773542563794
+}
