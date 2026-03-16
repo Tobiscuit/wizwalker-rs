@@ -1,0 +1,26 @@
+{
+  "resource": {
+    "name": "sessions/9936753553469226169",
+    "title": "Task 5: Memory Objects — Player & Core (Batch 1)",
+    "sourceContext": {
+      "source": "sources/github/Tobiscuit/wizwalker-rs",
+      "githubRepoContext": {
+        "startingBranch": "main"
+      }
+    },
+    "prompt": "IMPORTANT: You have access to the context7 MCP server. Before writing ANY Rust code, use context7 to look up the latest documentation for the crates you are using. Look up: windows-rs, tokio, thiserror, bitflags, byteorder. Always verify crate APIs against context7 docs.\n\nIMPORTANT: The following types are already defined in this repo on main — import them, do NOT redefine them:\n- crate::errors::{Result, WizWalkerError}\n- crate::types::{XYZ, Orient, Color, Keycode}\n- crate::memory::memory_object::{MemoryObject, MemoryReader, DynamicMemoryObject}\n\nPort the first batch of WizWalker memory object wrappers from Python to Rust.\n\nSource files (all from https://github.com/LaurenzLikeThat/wizwalker/blob/development/wizwalker/memory/memory_objects/):\n- actor_body.py → objects/actor_body.rs\n- client_object.py → objects/client_object.rs\n- core_object.py → objects/core_object.rs\n- core_template.py → objects/core_template.rs\n- game_client.py → objects/game_client.rs\n- client_zone.py → objects/client_zone.rs\n- enums.py → objects/enums.rs\n\nEach wraps a MemoryObject (the trait is already in memory/memory_object.rs) with async methods reading typed values at specific offsets. CRITICAL: Preserve ALL offset values exactly. Convert Python IntEnum/Flag to Rust enums with repr(i32) or bitflags! macro. Update objects/mod.rs.",
+    "url": "https://jules.google.com/session/9936753553469226169",
+    "id": "9936753553469226169",
+    "automationMode": "AUTO_CREATE_PR",
+    "archived": false,
+    "state": "unspecified",
+    "outputs": [],
+    "outcome": {
+      "sessionId": "9936753553469226169",
+      "title": "Task 5: Memory Objects — Player & Core (Batch 1)",
+      "state": "completed",
+      "outputs": []
+    }
+  },
+  "_lastSyncedAt": 1773601881473
+}
