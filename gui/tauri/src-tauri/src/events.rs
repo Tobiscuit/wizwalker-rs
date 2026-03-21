@@ -31,6 +31,8 @@ pub fn spawn_telemetry_loop(app: AppHandle) {
         let mut scan_cooldown: u32 = 0;
         // Counter to rate-limit hook retries (retry every 5s on failure)
         let mut hook_cooldown: u32 = 0;
+        // Counter for telemetry log rate-limiting
+        let mut telem_counter: u32 = 0;
 
         loop {
             let state = app.state::<Mutex<WizState>>();
@@ -98,43 +100,55 @@ pub fn spawn_telemetry_loop(app: AppHandle) {
             // ── Phase 3: Read + emit telemetry ──────────────────────────
             let payload = {
                 let wiz = state.lock().unwrap();
-                let label = WizState::client_label(wiz.active_client_idx);
 
-                if let Some(client_arc) = wiz.clients.get(&label) {
+                // Find the first client that has hooks activated
+                let mut found_payload = None;
+                for (label, client_arc) in &wiz.clients {
                     let client = client_arc.blocking_lock();
-
-                    // Read position from the teleport helper hook export
-                    let position =
-                        if let Ok(addr) = client.hook_handler.read_teleport_helper() {
-                            if let Some(reader) = client.reader() {
-                                Position {
-                                    x: reader.read_typed::<f32>(addr).unwrap_or(0.0),
-                                    y: reader.read_typed::<f32>(addr + 4).unwrap_or(0.0),
-                                    z: reader.read_typed::<f32>(addr + 8).unwrap_or(0.0),
+                    if client.hook_handler.has_any_hooks() {
+                        // Read position from the PlayerHook export
+                        // Chain: player_struct export → deref → player base → +88 = XYZ
+                        let position =
+                            if let Ok(player_base) = client.hook_handler.read_current_player_base() {
+                                if let Some(reader) = client.reader() {
+                                    Position {
+                                        x: reader.read_typed::<f32>(player_base + 88).unwrap_or(0.0),
+                                        y: reader.read_typed::<f32>(player_base + 92).unwrap_or(0.0),
+                                        z: reader.read_typed::<f32>(player_base + 96).unwrap_or(0.0),
+                                    }
+                                } else {
+                                    Position::default()
                                 }
                             } else {
                                 Position::default()
-                            }
-                        } else {
-                            Position::default()
-                        };
+                            };
 
-                    TelemetryPayload {
-                        active_client: Some(label),
-                        position,
-                        zone: client
-                            .zone_name()
-                            .unwrap_or_else(|| "Unknown".into()),
-                        in_combat: client.in_battle(),
-                    }
-                } else {
-                    TelemetryPayload {
-                        active_client: None,
-                        position: Position::default(),
-                        zone: "—".into(),
-                        in_combat: false,
+                        // Log the first non-zero position for debugging
+                        if position.x != 0.0 || position.y != 0.0 || position.z != 0.0 {
+                            if telem_counter % 100 == 0 {
+                                eprintln!("[arcane] Telemetry: {} pos=({:.1}, {:.1}, {:.1})",
+                                    label, position.x, position.y, position.z);
+                            }
+                        }
+
+                        found_payload = Some(TelemetryPayload {
+                            active_client: Some(label.clone()),
+                            position,
+                            zone: client
+                                .zone_name()
+                                .unwrap_or_else(|| "Unknown".into()),
+                            in_combat: client.in_battle(),
+                        });
+                        break;
                     }
                 }
+
+                found_payload.unwrap_or(TelemetryPayload {
+                    active_client: None,
+                    position: Position::default(),
+                    zone: "—".into(),
+                    in_combat: false,
+                })
             };
 
             // Emit to all frontend listeners
@@ -142,6 +156,7 @@ pub fn spawn_telemetry_loop(app: AppHandle) {
                 tracing::warn!("Failed to emit telemetry: {e}");
             }
 
+            telem_counter = telem_counter.wrapping_add(1);
             std::thread::sleep(std::time::Duration::from_millis(100));
         }
     });
