@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use tokio::sync::Mutex;
 use windows::core::BOOL;
 use windows::Win32::Foundation::{HWND, LPARAM};
-use windows::Win32::UI::WindowsAndMessaging::{EnumWindows, GetWindowThreadProcessId, GetWindowTextW};
+use windows::Win32::UI::WindowsAndMessaging::{EnumWindows, GetClassNameW, GetWindowThreadProcessId};
 use windows::Win32::System::Threading::{OpenProcess, PROCESS_ALL_ACCESS};
 
 use crate::client::Client;
@@ -59,12 +59,16 @@ impl ClientHandler {
     pub fn get_new_clients(&mut self) -> Result<Vec<Arc<Mutex<Client>>>, WizError> {
         let mut new_clients = Vec::new();
 
+        // Match by window CLASS name, not title — exactly like Python's
+        // get_all_wizard_handles() which uses GetClassNameW + "Wizard Graphical Client".
+        // This correctly excludes the launcher/patcher window.
         unsafe extern "system" fn enum_windows_proc(hwnd: HWND, lparam: LPARAM) -> BOOL {
-            let mut title: [u16; 256] = [0; 256];
-            let len = unsafe { GetWindowTextW(hwnd, &mut title) };
+            const TARGET_CLASS: &str = "Wizard Graphical Client";
+            let mut class_name: [u16; 64] = [0; 64];
+            let len = unsafe { GetClassNameW(hwnd, &mut class_name) };
             if len > 0 {
-                let title_str = String::from_utf16_lossy(&title[..len as usize]);
-                if title_str.contains("Wizard101") {
+                let class_str = String::from_utf16_lossy(&class_name[..len as usize]);
+                if class_str == TARGET_CLASS {
                     let handles_ptr = lparam.0 as *mut Vec<HWND>;
                     let handles = unsafe { &mut *handles_ptr };
                     handles.push(hwnd);
