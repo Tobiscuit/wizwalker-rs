@@ -14,9 +14,8 @@ pub struct ClientHandler {
     managed_handles: Vec<HWND>,
 }
 
-// SAFETY: HWND is a raw kernel handle, safe to send between threads.
-// Client is already Send, and Arc<Mutex<Client>> is inherently Send + Sync.
-// Sync is needed for tokio::MutexGuard<T> to be Send across .await points.
+// SAFETY: HWND is a raw kernel handle that is valid across threads within
+// the same process. Client is already Send, Arc<Mutex<Client>> is Send+Sync.
 unsafe impl Send for ClientHandler {}
 unsafe impl Sync for ClientHandler {}
 
@@ -37,16 +36,27 @@ impl ClientHandler {
         // TODO: utils::start_instance()
     }
 
-    pub async fn get_foreground_client(&self) -> Option<Arc<Mutex<Client>>> {
+    /// Return the client that currently has foreground focus, if any.
+    ///
+    /// # Python equivalent
+    /// `ClientHandler.get_foreground_client()` — sync `def` in Python.
+    pub fn get_foreground_client(&self) -> Option<Arc<Mutex<Client>>> {
         for client in &self.clients {
-            if client.lock().await.is_foreground() {
+            if client.blocking_lock().is_foreground() {
                 return Some(client.clone());
             }
         }
         None
     }
 
-    pub async fn get_new_clients(&mut self) -> Result<Vec<Arc<Mutex<Client>>>, WizError> {
+    /// Scan for new Wizard101 game instances not yet managed.
+    ///
+    /// Uses EnumWindows to find all windows with "Wizard101" in the title,
+    /// creates Client objects for new ones, and returns them.
+    ///
+    /// # Python equivalent
+    /// `ClientHandler.get_new_clients()` — sync `def` in Python.
+    pub fn get_new_clients(&mut self) -> Result<Vec<Arc<Mutex<Client>>>, WizError> {
         let mut new_clients = Vec::new();
 
         unsafe extern "system" fn enum_windows_proc(hwnd: HWND, lparam: LPARAM) -> BOOL {
@@ -101,12 +111,16 @@ impl ClientHandler {
         Ok(new_clients)
     }
 
-    pub async fn remove_dead_clients(&mut self) -> Vec<Arc<Mutex<Client>>> {
+    /// Remove and return clients that are no longer running.
+    ///
+    /// # Python equivalent
+    /// `ClientHandler.remove_dead_clients()` — sync `def` in Python.
+    pub fn remove_dead_clients(&mut self) -> Vec<Arc<Mutex<Client>>> {
         let mut dead_clients = Vec::new();
         let mut alive_clients = Vec::new();
 
         for client_arc in self.clients.drain(..) {
-            let is_running = client_arc.lock().await.is_running();
+            let is_running = client_arc.blocking_lock().is_running();
             if is_running {
                 alive_clients.push(client_arc);
             } else {
@@ -115,32 +129,59 @@ impl ClientHandler {
         }
 
         self.clients = alive_clients;
-        // Also remove dead handles from managed_handles
+        // Rebuild managed handles from alive clients.
         self.managed_handles.clear();
         for client in &self.clients {
-            self.managed_handles.push(client.lock().await.window_handle);
+            self.managed_handles.push(client.blocking_lock().window_handle);
         }
 
         dead_clients
     }
 
-    pub async fn get_ordered_clients(&self) -> Vec<Arc<Mutex<Client>>> {
-        // TODO: Get client's ordered by their position on the screen
-        // return utils.order_clients(self.clients)
+    /// Get clients ordered by their screen position.
+    ///
+    /// # Python equivalent
+    /// `ClientHandler.get_ordered_clients()` — sync `def` in Python.
+    pub fn get_ordered_clients(&self) -> Vec<Arc<Mutex<Client>>> {
+        // TODO: order by screen position (utils.order_clients)
         self.clients.clone()
     }
 
-    pub async fn activate_all_client_hooks(&self, _wait_for_ready: bool) {
-        // Activate hooks for all clients
-    }
-
-    pub async fn activate_all_client_mouseless(&self) {
-        // Activates mouseless hook for all clients
-    }
-
-    pub async fn close(&mut self) {
+    /// Activate hooks for all managed clients.
+    ///
+    /// # Python equivalent
+    /// `ClientHandler.activate_all_client_hooks()` — async in Python
+    /// (used asyncio.create_task for parallelism), but the underlying
+    /// HookHandler.activate_all_hooks() is sync in Rust (WriteProcessMemory).
+    pub fn activate_all_client_hooks(&self) {
         for client in &self.clients {
-            client.lock().await.close();
+            let mut c = client.blocking_lock();
+            if let Err(e) = c.activate_hooks() {
+                eprintln!("Warning: Failed to activate hooks for pid {}: {}", c.process_id, e);
+            }
+        }
+    }
+
+    /// Activate mouseless cursor hook for all managed clients.
+    ///
+    /// # Python equivalent
+    /// `ClientHandler.activate_all_client_mouseless()` — async in Python,
+    /// sync in Rust (WriteProcessMemory).
+    pub fn activate_all_client_mouseless(&self) {
+        for client in &self.clients {
+            let mut c = client.blocking_lock();
+            // TODO: c.activate_mouseless() when implemented
+            let _ = &mut c; // suppress unused warning
+        }
+    }
+
+    /// Close all clients — unhook, release handles.
+    ///
+    /// # Python equivalent
+    /// `ClientHandler.close()` — async in Python, sync in Rust.
+    pub fn close(&mut self) {
+        for client in &self.clients {
+            client.blocking_lock().close();
         }
         self.clients.clear();
         self.managed_handles.clear();
@@ -149,7 +190,6 @@ impl ClientHandler {
 
 impl Drop for ClientHandler {
     fn drop(&mut self) {
-        // Drop logic if necessary, though true async drop is tricky in Rust.
-        // The Python client handler has `async def close(self)` and `__aexit__` which calls it.
+        self.close();
     }
 }

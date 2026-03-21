@@ -35,6 +35,7 @@ export function Dashboard() {
   const [clients, setClients] = useState<ClientInfo[]>([]);
   const [toggles, setToggles] = useState<Record<string, boolean>>({});
   const [activeClient, setActiveClient] = useState("P1");
+  const [scanStatus, setScanStatus] = useState<"idle" | "scanning" | "none_found">("idle");
 
   // Load initial state from the backend
   useEffect(() => {
@@ -52,13 +53,22 @@ export function Dashboard() {
     }
   }, [wiz]);
 
-  // Scan for clients via IPC
+  // Scan for clients via IPC — with feedback
   const handleScan = useCallback(async () => {
+    setScanStatus("scanning");
     try {
       const found = await wiz.scanClients();
       setClients(found);
+      if (found.length === 0) {
+        setScanStatus("none_found");
+        setTimeout(() => setScanStatus("idle"), 3000);
+      } else {
+        setScanStatus("idle");
+      }
     } catch (err) {
       console.error("Scan failed:", err);
+      setScanStatus("none_found");
+      setTimeout(() => setScanStatus("idle"), 3000);
     }
   }, [wiz]);
 
@@ -99,13 +109,27 @@ export function Dashboard() {
           <h3 className="font-[var(--font-headline)] text-3xl font-light tracking-tight">
             Connected <span className="font-bold text-accent-violet">Clients</span>
           </h3>
-          <button
-            onClick={handleScan}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-accent-violet/10 hover:bg-accent-violet/20 text-accent-violet text-xs font-bold uppercase tracking-widest transition-all"
-          >
-            <span className="material-symbols-outlined text-sm">radar</span>
-            Scan
-          </button>
+          <div className="flex items-center gap-4">
+            {scanStatus === "none_found" && (
+              <span className="text-xs text-accent-amber/80 animate-pulse">
+                No Wizard101 clients found
+              </span>
+            )}
+            <button
+              onClick={handleScan}
+              disabled={scanStatus === "scanning"}
+              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-widest transition-all ${
+                scanStatus === "scanning"
+                  ? "bg-accent-violet/5 text-accent-violet/40 cursor-wait"
+                  : "bg-accent-violet/10 hover:bg-accent-violet/20 text-accent-violet"
+              }`}
+            >
+              <span className={`material-symbols-outlined text-sm ${scanStatus === "scanning" ? "animate-spin" : ""}`}>
+                {scanStatus === "scanning" ? "progress_activity" : "radar"}
+              </span>
+              {scanStatus === "scanning" ? "Scanning…" : "Scan"}
+            </button>
+          </div>
         </div>
         <div className="grid grid-cols-4 gap-6">
           {clientSlots.map((client) =>

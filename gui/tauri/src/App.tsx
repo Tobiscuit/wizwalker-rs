@@ -11,9 +11,10 @@ import { Settings } from "./pages/Settings";
 function App() {
   return (
     <BrowserRouter>
-      <div className="flex h-screen w-screen bg-bg-base text-text-primary overflow-hidden">
-        <Sidebar />
-        <main className="pl-64 flex-1 flex flex-col overflow-hidden">
+      <div className="flex flex-col h-screen w-screen bg-bg-base text-text-primary overflow-hidden">
+        <div className="flex flex-1 overflow-hidden">
+          <Sidebar />
+          <main className="pl-64 flex-1 flex flex-col overflow-hidden">
           {/* Top Header */}
           <header className="flex justify-between items-center w-full px-12 py-6 bg-bg-base/50 backdrop-blur-md font-[var(--font-headline)] font-medium z-40">
             <div className="flex items-center gap-8">
@@ -59,6 +60,7 @@ function App() {
             <Route path="/settings" element={<Settings />} />
           </Routes>
         </main>
+        </div>
         <StatusBar />
       </div>
     </BrowserRouter>

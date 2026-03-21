@@ -1,8 +1,9 @@
 //! Client management commands — scan, list, connect, disconnect.
 //!
-//! All commands are **synchronous** (non-async) because Win32 operations
-//! (EnumWindows, ReadProcessMemory) are inherently blocking.
-//! Per Tauri v2 docs: sync commands use `State<'_, Mutex<T>>` with `.lock().unwrap()`.
+//! All commands are **synchronous** (non-async) because:
+//! - Win32 operations (EnumWindows, ReadProcessMemory) are inherently blocking
+//! - ClientHandler methods are all sync (Option A architecture)
+//! - Per Tauri v2 docs: sync commands use `State<'_, Mutex<T>>` with `.lock().unwrap()`
 
 use std::sync::Mutex;
 
@@ -24,16 +25,17 @@ fn build_info(label: &str, client: &wizwalker::client::Client) -> ClientInfo {
 }
 
 /// Scan for new Wizard101 game instances and add them to the handler.
+///
+/// ClientHandler::get_new_clients() is fully synchronous (EnumWindows + OpenProcess).
+/// No async bridging needed.
 #[tauri::command]
 pub fn scan_clients(
     state: State<'_, Mutex<WizState>>,
 ) -> CommandResult<Vec<ClientInfo>> {
     let mut wiz = state.lock().unwrap();
 
-    // get_new_clients is async in the wizwalker crate but the underlying
-    // EnumWindows + OpenProcess are sync Win32 calls; we block on it here.
-    let rt = tokio::runtime::Handle::current();
-    let new_clients = rt.block_on(wiz.handler.get_new_clients()).unwrap_or_default();
+    // Direct sync call — no block_on, no block_in_place needed.
+    let new_clients = wiz.handler.get_new_clients().unwrap_or_default();
 
     for client_arc in new_clients {
         let idx = wiz.clients.len();
@@ -41,14 +43,15 @@ pub fn scan_clients(
         wiz.clients.insert(label, client_arc);
     }
 
-    // Remove dead clients
-    rt.block_on(wiz.handler.remove_dead_clients());
+    // Remove dead clients (also sync).
+    wiz.handler.remove_dead_clients();
 
-    // Build client info list
+    // Build client info list.
     let mut infos = Vec::new();
     for (label, client_arc) in &wiz.clients {
-        let client = client_arc.blocking_lock();
-        infos.push(build_info(label, &client));
+        if let Ok(client) = client_arc.try_lock() {
+            infos.push(build_info(label, &client));
+        }
     }
     infos.sort_by(|a, b| a.label.cmp(&b.label));
     Ok(infos)
@@ -63,8 +66,9 @@ pub fn get_clients(
 
     let mut infos = Vec::new();
     for (label, client_arc) in &wiz.clients {
-        let client = client_arc.blocking_lock();
-        infos.push(build_info(label, &client));
+        if let Ok(client) = client_arc.try_lock() {
+            infos.push(build_info(label, &client));
+        }
     }
     infos.sort_by(|a, b| a.label.cmp(&b.label));
     Ok(infos)
