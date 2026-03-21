@@ -27,7 +27,22 @@ impl CombatHandler {
     }
 
     pub async fn handle_round(&self) -> Result<(), WizWalkerMemoryError> {
-        unimplemented!()
+        // Default handle_round: attempt first castable card if any, otherwise pass.
+        // Users override this via the Deimos AI config in automation/combat.rs.
+        let spell_checkbox_windows = self.get_card_windows().await?;
+
+        for spell_win in spell_checkbox_windows.iter().rev() {
+            if spell_win.flags()?.contains(WindowFlags::VISIBLE) {
+                if !spell_win.maybe_spell_grayed()? {
+                    // Cast the first castable card (no specific target)
+                    self.client.mouse_handler.click_window(spell_win, false).await?;
+                    return Ok(());
+                }
+            }
+        }
+
+        // No castable cards, pass
+        self.pass_button().await
     }
 
     pub async fn handle_combat(&self) -> Result<(), WizWalkerMemoryError> {

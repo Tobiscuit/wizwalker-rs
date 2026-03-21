@@ -8,6 +8,7 @@
 mod commands;
 mod events;
 mod state;
+mod automation;
 
 use std::sync::Mutex;
 
