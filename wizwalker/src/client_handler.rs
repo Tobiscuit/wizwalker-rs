@@ -1,7 +1,8 @@
 use std::sync::Arc;
 use std::path::PathBuf;
 use tokio::sync::Mutex;
-use windows::Win32::Foundation::{BOOL, HWND, LPARAM};
+use windows::core::BOOL;
+use windows::Win32::Foundation::{HWND, LPARAM};
 use windows::Win32::UI::WindowsAndMessaging::{EnumWindows, GetWindowThreadProcessId, GetWindowTextW};
 use windows::Win32::System::Threading::{OpenProcess, PROCESS_ALL_ACCESS};
 
@@ -12,6 +13,12 @@ pub struct ClientHandler {
     pub clients: Vec<Arc<Mutex<Client>>>,
     managed_handles: Vec<HWND>,
 }
+
+// SAFETY: HWND is a raw kernel handle, safe to send between threads.
+// Client is already Send, and Arc<Mutex<Client>> is inherently Send + Sync.
+// Sync is needed for tokio::MutexGuard<T> to be Send across .await points.
+unsafe impl Send for ClientHandler {}
+unsafe impl Sync for ClientHandler {}
 
 impl ClientHandler {
     pub fn new() -> Self {
@@ -73,9 +80,17 @@ impl ClientHandler {
                 if process_id != 0 {
                     let process_handle = unsafe {
                         OpenProcess(PROCESS_ALL_ACCESS, false.into(), process_id)
-                    }.map_err(|e| WizError::WindowsError(e))?;
+                    }.map_err(|e| WizError::Other(format!("OpenProcess failed: {}", e)))?;
 
-                    let client = Client::new(hwnd, process_handle, process_id);
+                    let mut client = Client::from_handles(hwnd, process_handle, process_id);
+
+                    // Initialize the memory reader and memory objects.
+                    // If open() fails (e.g., process died between EnumWindows and here),
+                    // we still track the client — it will be cleaned up by remove_dead_clients().
+                    if let Err(e) = client.open() {
+                        eprintln!("Warning: Failed to open client (pid {}): {}", process_id, e);
+                    }
+
                     let client_arc = Arc::new(Mutex::new(client));
                     self.clients.push(client_arc.clone());
                     new_clients.push(client_arc);
@@ -125,7 +140,7 @@ impl ClientHandler {
 
     pub async fn close(&mut self) {
         for client in &self.clients {
-            client.lock().await.close().await;
+            client.lock().await.close();
         }
         self.clients.clear();
         self.managed_handles.clear();
