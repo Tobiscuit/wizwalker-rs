@@ -1,7 +1,10 @@
-import { useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { ToggleSwitch } from "../components/ToggleSwitch";
+import { useWizWalker, type CameraState } from "../hooks/useWizWalker";
 
 export function Camera() {
+  const wiz = useWizWalker();
+
   const [freecam, setFreecam] = useState(false);
   const [lockCamera, setLockCamera] = useState(true);
   const [rollEnabled, setRollEnabled] = useState(false);
@@ -26,6 +29,63 @@ keyframe 6s:
   position: [0, 300, -100]
   rotation: [0, 45, 0]
   fov: 40`);
+
+  // Load current camera state from backend
+  useEffect(() => {
+    wiz.getCamera()
+      .then((cam: CameraState) => {
+        setPosition({
+          x: cam.position.x.toFixed(2),
+          y: cam.position.y.toFixed(2),
+          z: cam.position.z.toFixed(2),
+        });
+        setRotation({
+          yaw: cam.yaw.toFixed(2),
+          pitch: cam.pitch.toFixed(2),
+          roll: cam.roll.toFixed(2),
+        });
+        setFov(cam.fov.toFixed(0));
+        setDistance(cam.distance.toFixed(0));
+      })
+      .catch(() => {});
+  }, []);
+
+  // Apply camera position via IPC
+  const handleApplyPosition = useCallback(async () => {
+    const x = parseFloat(position.x);
+    const y = parseFloat(position.y);
+    const z = parseFloat(position.z);
+    if (isNaN(x) || isNaN(y) || isNaN(z)) return;
+    try {
+      await wiz.setCameraPosition(x, y, z);
+    } catch (err) {
+      console.error("Set camera position failed:", err);
+    }
+  }, [wiz, position]);
+
+  // Apply camera rotation via IPC
+  const handleApplyRotation = useCallback(async () => {
+    const yaw = parseFloat(rotation.yaw);
+    const pitch = parseFloat(rotation.pitch);
+    const roll = parseFloat(rotation.roll);
+    if (isNaN(yaw) || isNaN(pitch) || isNaN(roll)) return;
+    try {
+      await wiz.setCameraRotation(yaw, pitch, roll);
+    } catch (err) {
+      console.error("Set camera rotation failed:", err);
+    }
+  }, [wiz, rotation]);
+
+  // Apply FOV via IPC
+  const handleApplyFov = useCallback(async () => {
+    const f = parseFloat(fov);
+    if (isNaN(f)) return;
+    try {
+      await wiz.setCameraFov(f);
+    } catch (err) {
+      console.error("Set camera FOV failed:", err);
+    }
+  }, [wiz, fov]);
 
   return (
     <div className="flex-1 overflow-y-auto px-12 pb-24 pt-4 space-y-12">
@@ -83,6 +143,12 @@ keyframe 6s:
                 />
               </div>
             ))}
+            <button
+              onClick={handleApplyPosition}
+              className="w-full py-2 mt-2 bg-accent-cyan/10 text-accent-cyan rounded-xl text-xs font-bold uppercase tracking-wider hover:bg-accent-cyan/20 transition-all"
+            >
+              Apply Position
+            </button>
           </div>
 
           {/* Rotation Inputs */}
@@ -104,18 +170,27 @@ keyframe 6s:
                 />
               </div>
             ))}
+            <button
+              onClick={handleApplyRotation}
+              className="w-full py-2 mt-2 bg-accent-violet/10 text-accent-violet rounded-xl text-xs font-bold uppercase tracking-wider hover:bg-accent-violet/20 transition-all"
+            >
+              Apply Rotation
+            </button>
           </div>
 
           {/* FOV & Distance */}
           <div className="bg-bg-surface rounded-3xl p-6 shadow-2xl space-y-4">
             <div className="flex items-center justify-between">
               <span className="font-medium">Field of View</span>
-              <input
-                type="text"
-                value={fov}
-                onChange={(e) => setFov(e.target.value)}
-                className="w-20 bg-bg-card-top/40 border border-text-dim/10 rounded-lg px-3 py-2 font-mono text-sm text-accent-amber text-center outline-none"
-              />
+              <div className="flex items-center gap-2">
+                <input
+                  type="text"
+                  value={fov}
+                  onChange={(e) => setFov(e.target.value)}
+                  onBlur={handleApplyFov}
+                  className="w-20 bg-bg-card-top/40 border border-text-dim/10 rounded-lg px-3 py-2 font-mono text-sm text-accent-amber text-center outline-none"
+                />
+              </div>
             </div>
             <div className="flex items-center justify-between">
               <span className="font-medium">Zoom Distance</span>

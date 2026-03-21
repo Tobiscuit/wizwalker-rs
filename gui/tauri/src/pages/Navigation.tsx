@@ -1,19 +1,24 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { ToggleSwitch } from "../components/ToggleSwitch";
+import { useWizWalker } from "../hooks/useWizWalker";
+import { useTelemetry } from "../hooks/useTelemetry";
 
 const teleportPresets = [
-  { label: "Quest TP", icon: "location_searching" },
-  { label: "Mass TP", icon: "groups" },
-  { label: "Entity TP", icon: "person_pin_circle" },
-  { label: "Zone TP", icon: "door_open" },
+  { label: "Quest TP", icon: "location_searching", action: "quest_tp" },
+  { label: "Mass TP", icon: "groups", action: "mass_tp" },
+  { label: "Entity TP", icon: "person_pin_circle", action: "entity_tp" },
+  { label: "Zone TP", icon: "door_open", action: "zone_tp" },
 ];
 
 export function Navigation() {
+  const wiz = useWizWalker();
+  const telemetry = useTelemetry();
+
   const [freecam, setFreecam] = useState(false);
-  const [xyzSync, setXyzSync] = useState(true);
-  const [customX, setCustomX] = useState("142.882");
-  const [customY, setCustomY] = useState("-94.103");
-  const [customZ, setCustomZ] = useState("0.004");
+  const [xyzSyncEnabled, setXyzSyncEnabled] = useState(false);
+  const [customX, setCustomX] = useState("");
+  const [customY, setCustomY] = useState("");
+  const [customZ, setCustomZ] = useState("");
   const [selectedWorld, setSelectedWorld] = useState("Wizard City");
 
   const worlds = [
@@ -22,6 +27,35 @@ export function Navigation() {
     "Azteca", "Khrysalis", "Polaris", "Mirage",
     "Empyrea", "Karamelle", "Lemuria", "Novus", "Wallaru",
   ];
+
+  // Copy current live position into the custom fields
+  const handleCopyXYZ = useCallback(() => {
+    setCustomX(telemetry.position.x.toFixed(3));
+    setCustomY(telemetry.position.y.toFixed(3));
+    setCustomZ(telemetry.position.z.toFixed(3));
+  }, [telemetry.position]);
+
+  // Teleport to the custom coordinates
+  const handleTeleport = useCallback(async () => {
+    const x = parseFloat(customX);
+    const y = parseFloat(customY);
+    const z = parseFloat(customZ);
+    if (isNaN(x) || isNaN(y) || isNaN(z)) return;
+    try {
+      await wiz.teleportTo(x, y, z);
+    } catch (err) {
+      console.error("Teleport failed:", err);
+    }
+  }, [wiz, customX, customY, customZ]);
+
+  // XYZ sync all clients
+  const handleXyzSync = useCallback(async () => {
+    try {
+      await wiz.xyzSync();
+    } catch (err) {
+      console.error("XYZ Sync failed:", err);
+    }
+  }, [wiz]);
 
   return (
     <div className="flex-1 overflow-y-auto px-12 pb-24 pt-4 space-y-12">
@@ -37,7 +71,7 @@ export function Navigation() {
       <div className="grid grid-cols-12 gap-10">
         {/* Position & Custom TP */}
         <section className="col-span-12 lg:col-span-5 space-y-6">
-          {/* Current Position */}
+          {/* Current Position — Live from telemetry */}
           <div className="flex items-center gap-4">
             <span className="material-symbols-outlined text-accent-cyan">my_location</span>
             <h4 className="font-[var(--font-headline)] text-xl font-bold tracking-tight uppercase">
@@ -47,9 +81,9 @@ export function Navigation() {
           <div className="bg-bg-sunken rounded-3xl p-8 border border-text-dim/10">
             <div className="grid grid-cols-3 gap-6">
               {[
-                { axis: "X", value: customX },
-                { axis: "Y", value: customY },
-                { axis: "Z", value: customZ },
+                { axis: "X", value: telemetry.position.x.toFixed(3) },
+                { axis: "Y", value: telemetry.position.y.toFixed(3) },
+                { axis: "Z", value: telemetry.position.z.toFixed(3) },
               ].map((c) => (
                 <div key={c.axis} className="space-y-2">
                   <p className="text-[10px] text-text-secondary/30 uppercase font-black">{c.axis}-Axis</p>
@@ -58,10 +92,16 @@ export function Navigation() {
               ))}
             </div>
             <div className="flex gap-3 mt-6">
-              <button className="flex-1 text-xs py-2 bg-accent-cyan/10 text-accent-cyan rounded-lg hover:bg-accent-cyan/20 transition-all uppercase tracking-wider font-bold">
+              <button
+                onClick={handleCopyXYZ}
+                className="flex-1 text-xs py-2 bg-accent-cyan/10 text-accent-cyan rounded-lg hover:bg-accent-cyan/20 transition-all uppercase tracking-wider font-bold"
+              >
                 Copy XYZ
               </button>
-              <button className="flex-1 text-xs py-2 bg-accent-violet/10 text-accent-violet rounded-lg hover:bg-accent-violet/20 transition-all uppercase tracking-wider font-bold">
+              <button
+                onClick={handleTeleport}
+                className="flex-1 text-xs py-2 bg-accent-violet/10 text-accent-violet rounded-lg hover:bg-accent-violet/20 transition-all uppercase tracking-wider font-bold"
+              >
                 Paste & TP
               </button>
             </div>
@@ -86,11 +126,15 @@ export function Navigation() {
                   type="text"
                   value={input.value}
                   onChange={(e) => input.set(e.target.value)}
+                  placeholder="0.000"
                   className="flex-1 bg-bg-card-top/40 border border-text-dim/10 rounded-xl px-4 py-3 font-mono text-sm text-accent-cyan outline-none focus:border-accent-violet/30 transition-colors"
                 />
               </div>
             ))}
-            <button className="w-full py-3 mt-2 bg-accent-violet/10 border border-accent-violet/20 rounded-2xl text-accent-violet font-bold uppercase tracking-wider text-sm hover:bg-accent-violet/20 transition-all flex items-center justify-center gap-2">
+            <button
+              onClick={handleTeleport}
+              className="w-full py-3 mt-2 bg-accent-violet/10 border border-accent-violet/20 rounded-2xl text-accent-violet font-bold uppercase tracking-wider text-sm hover:bg-accent-violet/20 transition-all flex items-center justify-center gap-2"
+            >
               <span className="material-symbols-outlined text-sm">near_me</span>
               Teleport to Coordinates
             </button>
@@ -110,14 +154,19 @@ export function Navigation() {
                 <span className="material-symbols-outlined text-accent-cyan">sync</span>
                 <span className="font-medium">XYZ Sync</span>
               </div>
-              <ToggleSwitch enabled={xyzSync} onChange={setXyzSync} />
+              <ToggleSwitch
+                enabled={xyzSyncEnabled}
+                onChange={(v) => {
+                  setXyzSyncEnabled(v);
+                  if (v) handleXyzSync();
+                }}
+              />
             </div>
           </div>
         </section>
 
         {/* Quick Actions & World Selector */}
         <section className="col-span-12 lg:col-span-7 space-y-6">
-          {/* Quick Teleport Actions */}
           <div className="flex items-center gap-4">
             <span className="material-symbols-outlined text-accent-violet">bolt</span>
             <h4 className="font-[var(--font-headline)] text-xl font-bold tracking-tight uppercase">

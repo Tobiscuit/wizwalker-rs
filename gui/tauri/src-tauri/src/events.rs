@@ -66,7 +66,7 @@ pub fn spawn_telemetry_loop(app: AppHandle) {
                 tracing::warn!("Failed to emit telemetry: {e}");
             }
 
-            std::thread::sleep(std::time::Duration::from_millis(500));
+            std::thread::sleep(std::time::Duration::from_millis(100));
         }
     });
 }

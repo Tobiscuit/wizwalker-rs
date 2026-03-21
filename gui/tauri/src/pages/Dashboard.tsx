@@ -1,21 +1,7 @@
-import { useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { ToggleSwitch } from "../components/ToggleSwitch";
-
-interface ClientCard {
-  id: string;
-  zone: string;
-  level: number;
-  school: string;
-  connected: boolean;
-  progress: number;
-}
-
-const mockClients: ClientCard[] = [
-  { id: "P1", zone: "Wizard City", level: 130, school: "Fire Wizard", connected: true, progress: 75 },
-  { id: "P2", zone: "Krokotopia", level: 24, school: "Storm Wizard", connected: true, progress: 25 },
-  { id: "P3", zone: "Marleybone", level: 42, school: "Life Wizard", connected: true, progress: 50 },
-  { id: "P4", zone: "", level: 0, school: "", connected: false, progress: 0 },
-];
+import { useWizWalker, type ClientInfo } from "../hooks/useWizWalker";
+import { useTelemetry } from "../hooks/useTelemetry";
 
 interface ControlItem {
   icon: string;
@@ -34,30 +20,76 @@ const controls: ControlItem[] = [
 ];
 
 const quickActions = [
-  { icon: "location_searching", label: "Quest TP" },
-  { icon: "sync_alt", label: "XYZ Sync" },
-  { icon: "door_open", label: "Exit Zone" },
-  { icon: "group_add", label: "Form Team" },
-  { icon: "auto_mode", label: "Loop Script" },
-  { icon: "play_arrow", label: "Resume All", primary: true },
+  { icon: "location_searching", label: "Quest TP", action: "quest_tp" },
+  { icon: "sync_alt", label: "XYZ Sync", action: "xyz_sync" },
+  { icon: "door_open", label: "Exit Zone", action: "exit_zone" },
+  { icon: "group_add", label: "Form Team", action: "form_team" },
+  { icon: "auto_mode", label: "Loop Script", action: "loop_script" },
+  { icon: "play_arrow", label: "Resume All", action: "resume_all", primary: true },
 ];
 
 export function Dashboard() {
-  const [toggles, setToggles] = useState<Record<string, boolean>>({
-    speedhack: true,
-    auto_combat: true,
-    auto_dialogue: true,
-    auto_sigil: false,
-    auto_questing: false,
-    pet_trainer: true,
-    anti_afk: true,
-  });
+  const wiz = useWizWalker();
+  const telemetry = useTelemetry();
 
+  const [clients, setClients] = useState<ClientInfo[]>([]);
+  const [toggles, setToggles] = useState<Record<string, boolean>>({});
   const [activeClient, setActiveClient] = useState("P1");
 
-  const handleToggle = (key: string, enabled: boolean) => {
-    setToggles((prev) => ({ ...prev, [key]: enabled }));
-  };
+  // Load initial state from the backend
+  useEffect(() => {
+    wiz.getClients().then(setClients).catch(() => {});
+    wiz.getToggleStates().then(setToggles).catch(() => {});
+  }, []);
+
+  // Toggle a hook via IPC → update local state on success
+  const handleToggle = useCallback(async (key: string, enabled: boolean) => {
+    try {
+      await wiz.toggleHook(key, enabled);
+      setToggles((prev) => ({ ...prev, [key]: enabled }));
+    } catch (err) {
+      console.error("Toggle failed:", err);
+    }
+  }, [wiz]);
+
+  // Scan for clients via IPC
+  const handleScan = useCallback(async () => {
+    try {
+      const found = await wiz.scanClients();
+      setClients(found);
+    } catch (err) {
+      console.error("Scan failed:", err);
+    }
+  }, [wiz]);
+
+  // Quick actions dispatch
+  const handleAction = useCallback(async (action: string) => {
+    try {
+      switch (action) {
+        case "xyz_sync":
+          await wiz.xyzSync();
+          break;
+        default:
+          console.log(`Action '${action}' not yet wired`);
+      }
+    } catch (err) {
+      console.error("Action failed:", err);
+    }
+  }, [wiz]);
+
+  // Fill empty client slots (up to 4)
+  const clientSlots = [...clients];
+  while (clientSlots.length < 4) {
+    clientSlots.push({
+      label: `P${clientSlots.length + 1}`,
+      pid: 0,
+      title: "",
+      hooked: false,
+      zone: "",
+      isForeground: false,
+      isRunning: false,
+    });
+  }
 
   return (
     <div className="flex-1 overflow-y-auto px-12 pb-24 pt-4 space-y-12">
@@ -67,18 +99,22 @@ export function Dashboard() {
           <h3 className="font-[var(--font-headline)] text-3xl font-light tracking-tight">
             Connected <span className="font-bold text-accent-violet">Clients</span>
           </h3>
-          <p className="text-text-secondary/40 text-xs tracking-[0.2em] uppercase mb-1">
-            Status: Operational
-          </p>
+          <button
+            onClick={handleScan}
+            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-accent-violet/10 hover:bg-accent-violet/20 text-accent-violet text-xs font-bold uppercase tracking-widest transition-all"
+          >
+            <span className="material-symbols-outlined text-sm">radar</span>
+            Scan
+          </button>
         </div>
         <div className="grid grid-cols-4 gap-6">
-          {mockClients.map((client) =>
-            client.connected ? (
+          {clientSlots.map((client) =>
+            client.isRunning ? (
               <button
-                key={client.id}
-                onClick={() => setActiveClient(client.id)}
+                key={client.label}
+                onClick={() => setActiveClient(client.label)}
                 className={`glass-card p-6 rounded-2xl flex flex-col gap-4 cursor-pointer transition-all duration-200 text-left ${
-                  activeClient === client.id
+                  activeClient === client.label
                     ? "border border-accent-violet/30 glow-violet"
                     : "border border-text-dim/10 opacity-70 hover:opacity-100 hover:border-accent-violet/20"
                 }`}
@@ -86,33 +122,31 @@ export function Dashboard() {
                 <div className="flex justify-between items-start">
                   <span
                     className={`w-8 h-8 rounded-lg flex items-center justify-center font-bold ${
-                      activeClient === client.id
+                      activeClient === client.label
                         ? "bg-accent-violet/20 text-accent-violet"
                         : "bg-bg-card-top text-text-secondary/60"
                     }`}
                   >
-                    {client.id}
+                    {client.label}
                   </span>
-                  <div className="w-2 h-2 rounded-full bg-accent-amber shadow-[0_0_8px_#ffb95f]" />
+                  <div className={`w-2 h-2 rounded-full ${
+                    client.hooked
+                      ? "bg-accent-amber shadow-[0_0_8px_#ffb95f]"
+                      : "bg-accent-cyan shadow-[0_0_8px_#39f0f5]"
+                  }`} />
                 </div>
                 <div>
                   <p className="font-[var(--font-headline)] text-lg font-bold text-text-primary">
-                    {client.zone}
+                    {client.zone || client.title || "Connected"}
                   </p>
                   <p className="text-text-secondary/60 text-xs font-medium">
-                    Lvl {client.level} {client.school}
+                    PID {client.pid} {client.hooked ? "• Hooked" : ""}
                   </p>
-                </div>
-                <div className="mt-2 h-1 bg-bg-card-top rounded-full overflow-hidden">
-                  <div
-                    className="h-full bg-accent-violet transition-all"
-                    style={{ width: `${client.progress}%` }}
-                  />
                 </div>
               </button>
             ) : (
               <div
-                key={client.id}
+                key={client.label}
                 className="bg-bg-sunken/50 p-6 rounded-2xl border border-text-dim/5 flex flex-col items-center justify-center gap-2 opacity-30 grayscale"
               >
                 <span className="material-symbols-outlined text-4xl">cloud_off</span>
@@ -153,7 +187,7 @@ export function Dashboard() {
                   <span className="font-medium tracking-wide">{control.label}</span>
                 </div>
                 <ToggleSwitch
-                  enabled={toggles[control.key]}
+                  enabled={toggles[control.key] ?? false}
                   onChange={(v) => handleToggle(control.key, v)}
                 />
               </div>
@@ -170,24 +204,32 @@ export function Dashboard() {
             </h4>
           </div>
           <div className="flex-1 flex flex-col gap-8">
-            {/* XYZ Coordinates */}
+            {/* XYZ Coordinates — now live from telemetry events */}
             <div className="bg-bg-sunken rounded-3xl p-8 border border-text-dim/10">
               <div className="flex justify-between items-center mb-8">
                 <div className="flex items-center gap-3">
-                  <div className="w-3 h-3 rounded-full bg-accent-cyan animate-pulse-glow" />
+                  <div className={`w-3 h-3 rounded-full ${
+                    telemetry.activeClient
+                      ? "bg-accent-cyan animate-pulse-glow"
+                      : "bg-text-dim/20"
+                  }`} />
                   <span className="text-xs uppercase tracking-tighter text-text-secondary/40 font-bold">
                     Spatial Coordinates
                   </span>
                 </div>
-                <span className="px-3 py-1 rounded-full bg-accent-cyan/10 text-accent-cyan text-[10px] font-black tracking-widest uppercase">
-                  Hooked
+                <span className={`px-3 py-1 rounded-full text-[10px] font-black tracking-widest uppercase ${
+                  telemetry.activeClient
+                    ? "bg-accent-cyan/10 text-accent-cyan"
+                    : "bg-text-dim/10 text-text-dim"
+                }`}>
+                  {telemetry.activeClient ? "Live" : "Waiting"}
                 </span>
               </div>
               <div className="grid grid-cols-3 gap-8">
                 {[
-                  { axis: "X-Axis", value: "142.882" },
-                  { axis: "Y-Axis", value: "-94.103" },
-                  { axis: "Z-Axis", value: "0.004" },
+                  { axis: "X-Axis", value: telemetry.position.x.toFixed(3) },
+                  { axis: "Y-Axis", value: telemetry.position.y.toFixed(3) },
+                  { axis: "Z-Axis", value: telemetry.position.z.toFixed(3) },
                 ].map((coord) => (
                   <div key={coord.axis} className="space-y-1">
                     <p className="text-[10px] text-text-secondary/30 uppercase font-black">
@@ -199,15 +241,16 @@ export function Dashboard() {
                   </div>
                 ))}
               </div>
-              {/* Decorative Waveform */}
-              <div className="mt-8 h-12 flex items-end gap-1 opacity-20">
-                {[2, 4, 6, 3, 8, 5, 2, 4, 7, 3, 5, 8, 4, 6, 3].map((h, i) => (
-                  <div
-                    key={i}
-                    className="w-full bg-accent-cyan rounded-t"
-                    style={{ height: `${h * 5}px` }}
-                  />
-                ))}
+              {/* Zone + Combat status */}
+              <div className="mt-6 flex items-center gap-4 text-xs">
+                <span className="px-3 py-1 rounded-full bg-bg-card-top text-text-secondary/60 font-bold">
+                  {telemetry.zone}
+                </span>
+                {telemetry.inCombat && (
+                  <span className="px-3 py-1 rounded-full bg-red-500/10 text-red-400 font-bold animate-pulse">
+                    ⚔ In Combat
+                  </span>
+                )}
               </div>
             </div>
 
@@ -216,6 +259,7 @@ export function Dashboard() {
               {quickActions.map((action) => (
                 <button
                   key={action.label}
+                  onClick={() => handleAction(action.action)}
                   className={`rounded-2xl flex flex-col items-center justify-center gap-3 p-6 border group transition-all ${
                     action.primary
                       ? "bg-accent-violet/10 hover:bg-accent-violet/20 border-accent-violet/20"
