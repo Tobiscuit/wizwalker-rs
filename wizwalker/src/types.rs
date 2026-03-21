@@ -1,5 +1,30 @@
 use crate::errors::Result;
 
+/// RGBA color as used by the game engine.
+#[derive(Debug, Clone, Copy, Default, PartialEq)]
+pub struct Color {
+    pub r: u8,
+    pub g: u8,
+    pub b: u8,
+    pub a: u8,
+}
+
+/// 3D position vector.
+#[derive(Debug, Clone, Copy, Default, PartialEq)]
+pub struct XYZ {
+    pub x: f32,
+    pub y: f32,
+    pub z: f32,
+}
+
+/// Orientation (pitch, roll, yaw) in radians.
+#[derive(Debug, Clone, Copy, Default, PartialEq)]
+pub struct Orient {
+    pub pitch: f32,
+    pub roll: f32,
+    pub yaw: f32,
+}
+
 pub struct Point(pub i32, pub i32);
 
 pub struct Rect {
@@ -24,3 +49,4 @@ impl DynamicWindow {
         Ok(Rect { left: 0, top: 0, right: 100, bottom: 100 })
     }
 }
+

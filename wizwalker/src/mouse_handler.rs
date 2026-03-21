@@ -1,100 +1,64 @@
 use std::sync::Arc;
 use tokio::sync::Mutex;
 use tokio::time::{sleep, Duration};
-use windows::Win32::Foundation::{HWND, LPARAM, POINT, WPARAM};
+use windows::Win32::Foundation::{HWND, LPARAM, WPARAM};
 use windows::Win32::UI::WindowsAndMessaging::{
     PostMessageW, SendMessageW, WM_LBUTTONDOWN, WM_LBUTTONUP, WM_MOUSEMOVE, WM_RBUTTONDOWN,
     WM_RBUTTONUP,
 };
 use windows::Win32::Graphics::Gdi::ClientToScreen;
-use crate::client::Client;
+use windows::Win32::Foundation::POINT;
 use crate::errors::Result;
-use crate::types::DynamicWindow;
+use crate::memory::objects::window::DynamicWindow;
 
+/// Handles mouse input to the Wizard101 game window.
+///
+/// Uses `SendMessage`/`PostMessage` to simulate mouse clicks at coordinates
+/// within the game window. Coordinates can be in client-space (relative to window)
+/// or screen-space.
 #[derive(Clone)]
 pub struct MouseHandler {
-    client: Arc<Client>,
+    window_handle: HWND,
     click_lock: Arc<Mutex<()>>,
     click_predelay: Duration,
-    ref_lock: Arc<Mutex<()>>,
-    ref_count: Arc<Mutex<usize>>,
 }
 
 impl MouseHandler {
-    pub fn new(client: Arc<Client>) -> Self {
-        // SetProcessDpiAwareness(2) should be called by the user or client at startup
+    pub fn new(window_handle: HWND) -> Self {
         Self {
-            client,
+            window_handle,
             click_lock: Arc::new(Mutex::new(())),
             click_predelay: Duration::from_secs_f64(0.02),
-            ref_lock: Arc::new(Mutex::new(())),
-            ref_count: Arc::new(Mutex::new(0)),
         }
     }
 
-    pub async fn activate_mouseless(&self) -> Result<()> {
-        let count = *self.ref_count.lock().await;
-        if count > 0 {
-            // "You can't mix managed mouseless with unmanaged mouseless"
-            return Err(crate::errors::Error::Runtime(
-                "You can't mix managed mouseless with unmanaged mouseless".to_string(),
-            ));
-        }
-        self.client.hook_handler.activate_mouseless_cursor_hook().await
-    }
-
-    pub async fn deactivate_mouseless(&self) -> Result<()> {
-        let count = *self.ref_count.lock().await;
-        if count > 0 {
-            return Err(crate::errors::Error::Runtime(
-                "You can't mix managed mouseless with unmanaged mouseless".to_string(),
-            ));
-        }
-        self.client.hook_handler.deactivate_mouseless_cursor_hook().await
-    }
-
-    pub async fn enter_managed_mouseless(&self) -> Result<()> {
-        let _guard = self.ref_lock.lock().await;
-        let mut count = self.ref_count.lock().await;
-        if *count == 0 && !self.client.hook_handler.check_if_hook_active() {
-            self.client.hook_handler.activate_mouseless_cursor_hook().await?;
-        }
-        *count += 1;
-        Ok(())
-    }
-
-    pub async fn exit_managed_mouseless(&self) -> Result<()> {
-        let _guard = self.ref_lock.lock().await;
-        let mut count = self.ref_count.lock().await;
-        *count -= 1;
-        if *count == 0 && self.client.hook_handler.check_if_hook_active() {
-            self.client.hook_handler.deactivate_mouseless_cursor_hook().await?;
-        }
-        Ok(())
-    }
-
+    /// Move the mouse cursor to the center of a window.
     pub async fn set_mouse_position_to_window(&self, window: &DynamicWindow) -> Result<()> {
-        let scaled_rect = window.scale_to_client().await?;
-        let center = scaled_rect.center();
-        self.set_mouse_position(center.0, center.1, true, false).await
+        let rect = window.window_rectangle()?;
+        let center_x = rect.x + rect.width / 2;
+        let center_y = rect.y + rect.height / 2;
+        self.set_mouse_position(center_x, center_y, true, false).await
     }
 
-    pub async fn click_window(&self, window: &DynamicWindow) -> Result<()> {
-        let scaled_rect = window.scale_to_client().await?;
-        let center = scaled_rect.center();
-        self.click(center.0, center.1, false, 0.0, false).await
+    /// Click on a window. If `right_click` is `true`, sends a right-click instead.
+    pub async fn click_window(&self, window: &DynamicWindow, right_click: bool) -> Result<()> {
+        let rect = window.window_rectangle()?;
+        let center_x = rect.x + rect.width / 2;
+        let center_y = rect.y + rect.height / 2;
+        self.click(center_x, center_y, right_click, 0.0, false).await
     }
 
-    pub async fn click_window_with_name(&self, name: &str) -> Result<()> {
-        let possible_windows = self.client.root_window.get_windows_with_name(name).await?;
-        if possible_windows.is_empty() {
-            return Err(crate::errors::Error::Value(format!("Window with name {} not found.", name)));
-        } else if possible_windows.len() > 1 {
-            return Err(crate::errors::Error::Value(format!("Multiple windows with name {}.", name)));
-        }
-        self.click_window(&possible_windows[0]).await
+    /// Click on a window found by name. If `right_click` is `true`, sends a right-click.
+    pub async fn click_window_with_name(&self, _name: &str, _right_click: bool) -> Result<()> {
+        // TODO: Navigate the window tree to find the window by name, then click.
+        // This requires access to the root window, which should be passed to MouseHandler
+        // or the caller should find the window and call click_window directly.
+        Err(crate::errors::WizWalkerError::Other(
+            "click_window_with_name: root window not available in MouseHandler".to_string(),
+        ))
     }
 
+    /// Low-level click at screen coordinates.
     pub async fn click(
         &self,
         x: i32,
@@ -109,7 +73,7 @@ impl MouseHandler {
             (WM_LBUTTONDOWN, WM_LBUTTONUP)
         };
 
-        let handle = self.client.window_handle;
+        let handle = self.window_handle;
         let _guard = self.click_lock.lock().await;
 
         self.set_mouse_position(x, y, true, false).await?;
@@ -135,12 +99,13 @@ impl MouseHandler {
             }
         }
 
-        // move mouse outside of client area
+        // Move mouse outside of client area.
         self.set_mouse_position(-100, -100, true, false).await?;
 
         Ok(())
     }
 
+    /// Set the mouse position, optionally converting from client coordinates.
     pub async fn set_mouse_position(
         &self,
         mut x: i32,
@@ -148,26 +113,29 @@ impl MouseHandler {
         convert_from_client: bool,
         use_post: bool,
     ) -> Result<()> {
-        let handle = self.client.window_handle;
+        let handle = self.window_handle;
 
         if convert_from_client {
             let mut point = POINT { x, y };
             unsafe {
                 if !ClientToScreen(handle, &mut point).as_bool() {
-                    return Err(crate::errors::Error::Runtime("Client to screen conversion failed".to_string()));
+                    return Err(crate::errors::WizWalkerError::Other(
+                        "Client to screen conversion failed".to_string(),
+                    ));
                 }
             }
             x = point.x;
             y = point.y;
         }
 
-        self.client.hook_handler.write_mouse_position(x, y).await?;
+        // The mouse position for the game needs to be packed as LPARAM (y << 16 | x).
+        let lparam = LPARAM(((y as i32) << 16 | (x as i32 & 0xFFFF)) as isize);
 
         unsafe {
             if use_post {
-                let _ = PostMessageW(Some(handle), WM_MOUSEMOVE, WPARAM(0), LPARAM(0));
+                let _ = PostMessageW(Some(handle), WM_MOUSEMOVE, WPARAM(0), lparam);
             } else {
-                SendMessageW(handle, WM_MOUSEMOVE, Some(WPARAM(0)), Some(LPARAM(0)));
+                SendMessageW(handle, WM_MOUSEMOVE, Some(WPARAM(0)), Some(lparam));
             }
         }
 

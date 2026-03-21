@@ -1,5 +1,4 @@
-use crate::errors::Result;
-use crate::memory::memory_object::{MemoryObject, DynamicMemoryObject};
+use crate::memory::memory_object::DynamicMemoryObject;
 
 pub struct MadlibArg {
     pub inner: DynamicMemoryObject,

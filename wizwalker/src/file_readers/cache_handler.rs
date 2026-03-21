@@ -1,6 +1,5 @@
 use crate::file_readers::wad::Wad;
 use crate::utils;
-use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs;
 use std::io;
@@ -11,7 +10,7 @@ pub type WadCacheMap = HashMap<String, HashMap<String, i64>>;
 pub struct CacheHandler {
     wad_cache: Option<WadCacheMap>,
     template_ids: Option<HashMap<String, String>>,
-    root_wad: Wad,
+    _root_wad: Wad,
 }
 
 impl CacheHandler {
@@ -20,7 +19,7 @@ impl CacheHandler {
         Ok(Self {
             wad_cache: None,
             template_ids: None,
-            root_wad,
+            _root_wad: root_wad,
         })
     }
 

@@ -3,8 +3,10 @@ use crate::combat::member::CombatMember;
 use crate::memory::objects::spell::DynamicGraphicalSpell;
 use crate::memory::objects::spell_effect::DynamicSpellEffect;
 use crate::memory::objects::window::DynamicWindow;
-use crate::utils::maybe_wait_for_value_with_timeout;
-use crate::errors::WizWalkerMemoryError;
+use crate::errors::WizWalkerError;
+
+// Alias: Jules used WizWalkerMemoryError throughout.
+type WizWalkerMemoryError = WizWalkerError;
 
 use std::sync::Arc;
 use tokio::time::{sleep, Duration};
@@ -48,7 +50,7 @@ impl CombatCard {
                 }
 
                 if debug_paint {
-                    target_card.spell_window.debug_paint().await?;
+                    target_card.spell_window.debug_paint()?;
                 }
 
                 self.combat_handler.client.mouse_handler.click_window(&target_card.spell_window, false).await?;
@@ -72,17 +74,17 @@ impl CombatCard {
                 }
 
                 for t in targets {
-                    let health_window = t.get_health_text_window().await?;
+                    let health_window = t.get_health_text_window()?;
                     self.combat_handler.client.mouse_handler.click_window(&health_window, false).await?;
                     if let Some(t) = sleep_time {
                         sleep(Duration::from_secs_f32(t)).await;
                     }
                 }
 
-                let confirm_windows = self.combat_handler.client.root_window.get_windows_with_name("ConfirmTargetsWindow").await?;
+                let confirm_windows = self.combat_handler.client.root_window.as_ref().expect("root_window not initialized").get_windows_with_name("ConfirmTargetsWindow")?;
                 if !confirm_windows.is_empty() {
                     let confirm_window = &confirm_windows[0];
-                    if confirm_window.is_visible().await? {
+                    if confirm_window.is_visible()? {
                         let _ = self.combat_handler.client.mouse_handler.click_window_with_name("ConfirmTargetsConfirm", false).await;
                     }
                 }
@@ -94,7 +96,7 @@ impl CombatCard {
                     sleep(Duration::from_secs_f32(t)).await;
                 }
 
-                let health_window = target_member.get_health_text_window().await?;
+                let health_window = target_member.get_health_text_window()?;
                 self.combat_handler.client.mouse_handler.click_window(&health_window, false).await?;
             }
             CardTarget::Cards(_) => {
@@ -121,7 +123,7 @@ impl CombatCard {
     }
 
     pub async fn get_graphical_spell(&self) -> Result<DynamicGraphicalSpell, WizWalkerMemoryError> {
-        if let Some(res) = self.spell_window.maybe_graphical_spell().await? {
+        if let Some(res) = self.spell_window.maybe_graphical_spell()? {
             Ok(res)
         } else {
             Err(WizWalkerMemoryError::Other("Graphical spell not found; probably reading too fast".to_string()))
@@ -129,103 +131,99 @@ impl CombatCard {
     }
 
     pub async fn wait_for_graphical_spell(&self, timeout: f32) -> Result<DynamicGraphicalSpell, WizWalkerMemoryError> {
-        let spell_window = self.spell_window.clone();
-
-        let res = maybe_wait_for_value_with_timeout(
-            move || {
-                let spell_window = spell_window.clone();
-                Box::pin(async move { spell_window.maybe_graphical_spell().await })
-            },
-            true,
-            Some(timeout),
-        ).await?;
-
-        if let Some(Some(spell)) = res {
-            Ok(spell)
-        } else {
-            Err(WizWalkerMemoryError::Other("Timeout waiting for graphical spell".to_string()))
+        let start = std::time::Instant::now();
+        let timeout_dur = std::time::Duration::from_secs_f32(timeout);
+        loop {
+            if let Some(spell) = self.spell_window.maybe_graphical_spell()? {
+                return Ok(spell);
+            }
+            if start.elapsed() >= timeout_dur {
+                return Err(WizWalkerError::Other("Timeout waiting for graphical spell".to_string()));
+            }
+            sleep(Duration::from_millis(50)).await;
         }
     }
 
     pub async fn get_spell_effects(&self) -> Result<Vec<DynamicSpellEffect>, WizWalkerMemoryError> {
         let spell = self.wait_for_graphical_spell(2.0).await?;
-        spell.spell_effects().await
+        spell.spell_effects()
     }
 
     pub async fn name(&self) -> Result<String, WizWalkerMemoryError> {
         let graphical_spell = self.wait_for_graphical_spell(2.0).await?;
-        let spell_template = graphical_spell.spell_template().await?;
-        spell_template.name().await
+        let spell_template = graphical_spell.spell_template()?;
+        spell_template.name()
     }
 
     pub async fn display_name_code(&self) -> Result<String, WizWalkerMemoryError> {
         let graphical_spell = self.wait_for_graphical_spell(2.0).await?;
-        let spell_template = graphical_spell.spell_template().await?;
-        spell_template.display_name().await
+        let spell_template = graphical_spell.spell_template()?;
+        spell_template.display_name()
     }
 
     pub async fn display_name(&self) -> Result<String, WizWalkerMemoryError> {
-        let code = self.display_name_code().await?;
-        self.combat_handler.client.cache_handler.get_langcode_name(&code).await
+        // TODO: Use CacheHandler to resolve langcode once it's implemented on Client.
+        // For now, return the raw display name code.
+        self.display_name_code().await
     }
 
     pub async fn type_name(&self) -> Result<String, WizWalkerMemoryError> {
         let graphical_spell = self.wait_for_graphical_spell(2.0).await?;
-        let spell_template = graphical_spell.spell_template().await?;
-        spell_template.type_name().await
+        let spell_template = graphical_spell.spell_template()?;
+        spell_template.type_name()
     }
 
     pub async fn template_id(&self) -> Result<u32, WizWalkerMemoryError> {
         let graphical_spell = self.wait_for_graphical_spell(2.0).await?;
-        graphical_spell.template_id().await
+        graphical_spell.template_id()
     }
 
     pub async fn spell_id(&self) -> Result<u32, WizWalkerMemoryError> {
         let graphical_spell = self.wait_for_graphical_spell(2.0).await?;
-        graphical_spell.spell_id().await
+        graphical_spell.spell_id()
     }
 
-    pub async fn accuracy(&self) -> Result<u32, WizWalkerMemoryError> {
+    pub async fn accuracy(&self) -> Result<u8, WizWalkerMemoryError> {
         let graphical_spell = self.wait_for_graphical_spell(2.0).await?;
-        graphical_spell.accuracy().await
+        graphical_spell.accuracy()
     }
 
     pub async fn is_castable(&self) -> Result<bool, WizWalkerMemoryError> {
-        Ok(!self.spell_window.maybe_spell_grayed().await?)
+        Ok(!self.spell_window.maybe_spell_grayed()?)
     }
 
     pub async fn is_enchanted(&self) -> Result<bool, WizWalkerMemoryError> {
         let graphical_spell = self.wait_for_graphical_spell(2.0).await?;
-        Ok(graphical_spell.enchantment().await? != 0)
+        Ok(graphical_spell.enchantment()? != 0)
     }
 
     pub async fn is_treasure_card(&self) -> Result<bool, WizWalkerMemoryError> {
         let graphical_spell = self.wait_for_graphical_spell(2.0).await?;
-        graphical_spell.treasure_card().await
+        graphical_spell.treasure_card()
     }
 
     pub async fn is_item_card(&self) -> Result<bool, WizWalkerMemoryError> {
         let graphical_spell = self.wait_for_graphical_spell(2.0).await?;
-        graphical_spell.item_card().await
+        graphical_spell.item_card()
     }
 
     pub async fn is_side_board(&self) -> Result<bool, WizWalkerMemoryError> {
         let graphical_spell = self.wait_for_graphical_spell(2.0).await?;
-        graphical_spell.side_board().await
+        graphical_spell.side_board()
     }
 
     pub async fn is_cloaked(&self) -> Result<bool, WizWalkerMemoryError> {
         let graphical_spell = self.wait_for_graphical_spell(2.0).await?;
-        graphical_spell.cloaked().await
+        graphical_spell.cloaked()
     }
 
     pub async fn is_enchanted_from_item_card(&self) -> Result<bool, WizWalkerMemoryError> {
         let graphical_spell = self.wait_for_graphical_spell(2.0).await?;
-        graphical_spell.enchantment_spell_is_item_card().await
+        graphical_spell.enchantment_spell_is_item_card()
     }
 
     pub async fn is_pve_only(&self) -> Result<bool, WizWalkerMemoryError> {
         let graphical_spell = self.wait_for_graphical_spell(2.0).await?;
-        graphical_spell.pve().await
+        graphical_spell.pve()
     }
 }

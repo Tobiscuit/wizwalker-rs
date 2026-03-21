@@ -11,11 +11,11 @@ impl CurrentQuestPosition {
         Self { inner }
     }
 
-    pub async fn position(&self) -> Result<XYZ> {
+    pub fn position(&self) -> Result<XYZ> {
         self.inner.read_value_from_offset(0)
     }
 
-    pub async fn write_position(&self, position: &XYZ) -> Result<()> {
+    pub fn write_position(&self, position: &XYZ) -> Result<()> {
         self.inner.write_value_to_offset(0, position)
     }
 }

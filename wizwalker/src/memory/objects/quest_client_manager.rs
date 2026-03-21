@@ -12,7 +12,7 @@ impl QuestClientManager {
         Self { inner }
     }
 
-    pub async fn quest_data(&self) -> Result<HashMap<i32, QuestData>> {
+    pub fn quest_data(&self) -> Result<HashMap<i32, QuestData>> {
         Ok(HashMap::new())
     }
 }

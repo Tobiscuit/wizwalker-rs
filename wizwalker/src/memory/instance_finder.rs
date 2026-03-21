@@ -8,10 +8,10 @@ pub struct InstanceFinder {
     reader: Arc<dyn MemoryReader>,
     class_name: String,
 
-    all_jmp_instructions: Mutex<Option<Vec<u64>>>,
-    all_type_name_functions: Mutex<Option<Vec<u64>>>,
-    type_name_function_map: Mutex<Option<HashMap<String, Vec<u64>>>>,
-    jmp_functions: Mutex<Option<Vec<u64>>>,
+    all_jmp_instructions: Mutex<Option<Vec<usize>>>,
+    all_type_name_functions: Mutex<Option<Vec<usize>>>,
+    type_name_function_map: Mutex<Option<HashMap<String, Vec<usize>>>>,
+    jmp_functions: Mutex<Option<Vec<usize>>>,
 }
 
 impl InstanceFinder {
@@ -29,7 +29,7 @@ impl InstanceFinder {
         }
     }
 
-    pub async fn read_null_terminated_string(&self, address: u64, max_size: usize) -> Result<String> {
+    pub async fn read_null_terminated_string(&self, address: usize, max_size: usize) -> Result<String> {
         let bytes = self.reader.read_bytes(address, max_size)?;
         if let Some(end) = bytes.iter().position(|&b| b == 0) {
             if end == 0 {
@@ -41,12 +41,12 @@ impl InstanceFinder {
         }
     }
 
-    pub async fn scan_for_pointer(&self, address: u64) -> Result<Vec<u64>> {
+    pub async fn scan_for_pointer(&self, address: usize) -> Result<Vec<usize>> {
         let pattern = address.to_le_bytes();
         self.reader.pattern_scan(&pattern, None, true)
     }
 
-    pub async fn get_all_jmp_instructions(&self) -> Result<Vec<u64>> {
+    pub async fn get_all_jmp_instructions(&self) -> Result<Vec<usize>> {
         let mut cache = self.all_jmp_instructions.lock().await;
         if let Some(jmps) = &*cache {
             return Ok(jmps.clone());
@@ -57,7 +57,7 @@ impl InstanceFinder {
         Ok(jmps)
     }
 
-    pub async fn get_all_type_name_functions(&self) -> Result<Vec<u64>> {
+    pub async fn get_all_type_name_functions(&self) -> Result<Vec<usize>> {
         let mut cache = self.all_type_name_functions.lock().await;
         if let Some(funcs) = &*cache {
             return Ok(funcs.clone());
@@ -68,13 +68,13 @@ impl InstanceFinder {
         Ok(funcs)
     }
 
-    pub async fn get_type_name_function_map(&self) -> Result<HashMap<String, Vec<u64>>> {
+    pub async fn get_type_name_function_map(&self) -> Result<HashMap<String, Vec<usize>>> {
         let mut cache = self.type_name_function_map.lock().await;
         if let Some(map) = &*cache {
             return Ok(map.clone());
         }
 
-        let mut func_name_map: HashMap<String, Vec<u64>> = HashMap::new();
+        let mut func_name_map: HashMap<String, Vec<usize>> = HashMap::new();
         let funcs = self.get_all_type_name_functions().await?;
 
         for func in funcs {
@@ -82,7 +82,7 @@ impl InstanceFinder {
             let lea_target = func + 66;
             let rip_offset: i32 = self.reader.read_typed(lea_target)?;
 
-            let type_name_addr = (lea_instruction as i64 + rip_offset as i64 + 7) as u64;
+            let type_name_addr = (lea_instruction as isize + rip_offset as isize + 7) as usize;
             let type_name = self.read_null_terminated_string(type_name_addr, 60).await?;
 
             func_name_map.entry(type_name).or_insert_with(Vec::new).push(func);
@@ -92,12 +92,12 @@ impl InstanceFinder {
         Ok(func_name_map)
     }
 
-    pub async fn get_type_name_functions(&self) -> Result<Vec<u64>> {
+    pub async fn get_type_name_functions(&self) -> Result<Vec<usize>> {
         let function_map = self.get_type_name_function_map().await?;
         Ok(function_map.get(&self.class_name).cloned().unwrap_or_default())
     }
 
-    pub async fn get_jmp_functions(&self) -> Result<Vec<u64>> {
+    pub async fn get_jmp_functions(&self) -> Result<Vec<usize>> {
         let mut cache = self.jmp_functions.lock().await;
         if let Some(jmps) = &*cache {
             return Ok(jmps.clone());
@@ -115,7 +115,7 @@ impl InstanceFinder {
             let offset: i32 = self.reader.read_typed(jmp + 1)?;
 
             for &poss in &type_name_funcs {
-                if (offset as i64 + 5) == (poss as i64 - jmp as i64) {
+                if (offset as isize + 5) == (poss as isize - jmp as isize) {
                     jmp_funcs.push(jmp);
                 }
             }
@@ -125,7 +125,7 @@ impl InstanceFinder {
         Ok(jmp_funcs)
     }
 
-    pub async fn get_instances(&self) -> Result<Vec<u64>> {
+    pub async fn get_instances(&self) -> Result<Vec<usize>> {
         let mut instances = Vec::new();
 
         for jmp_function in self.get_jmp_functions().await? {

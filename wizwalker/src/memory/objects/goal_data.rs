@@ -34,11 +34,11 @@ impl GoalData {
         Self { inner }
     }
 
-    pub async fn goal_status(&self) -> Result<bool> {
+    pub fn goal_status(&self) -> Result<bool> {
         self.inner.read_value_from_offset(0x74)
     }
 
-    pub async fn goal_type(&self) -> Result<GoalType> {
+    pub fn goal_type(&self) -> Result<GoalType> {
         let val: i32 = self.inner.read_value_from_offset(0xB8)?;
         match val {
             0 => Ok(GoalType::Unknown),
@@ -62,13 +62,13 @@ impl GoalData {
         }
     }
 
-    pub async fn madlib_block(&self) -> Result<MadlibBlock> {
+    pub fn madlib_block(&self) -> Result<MadlibBlock> {
         let addr = self.inner.read_value_from_offset(0xC0)?;
         let inner = DynamicMemoryObject::new(self.inner.reader(), addr)?;
         Ok(MadlibBlock::new(inner))
     }
 
-    pub async fn client_tag_list(&self) -> Result<Option<ClientTagList>> {
+    pub fn client_tag_list(&self) -> Result<Option<ClientTagList>> {
         let addr: u64 = self.inner.read_value_from_offset(0x110)?;
         if addr == 0 {
             return Ok(None);
@@ -77,19 +77,19 @@ impl GoalData {
         Ok(Some(ClientTagList::new(inner)))
     }
 
-    pub async fn no_quest_helper(&self) -> Result<bool> {
+    pub fn no_quest_helper(&self) -> Result<bool> {
         self.inner.read_value_from_offset(0x140)
     }
 
-    pub async fn pet_only_quest(&self) -> Result<bool> {
+    pub fn pet_only_quest(&self) -> Result<bool> {
         self.inner.read_value_from_offset(0x141)
     }
 
-    pub async fn has_active_results(&self) -> Result<bool> {
+    pub fn has_active_results(&self) -> Result<bool> {
         self.inner.read_value_from_offset(0x142)
     }
 
-    pub async fn hide_goal_floaty_text(&self) -> Result<bool> {
+    pub fn hide_goal_floaty_text(&self) -> Result<bool> {
         self.inner.read_value_from_offset(0x143)
     }
 }

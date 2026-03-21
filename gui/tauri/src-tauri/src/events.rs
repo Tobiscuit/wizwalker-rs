@@ -29,6 +29,8 @@ pub fn spawn_telemetry_loop(app: AppHandle) {
     std::thread::spawn(move || {
         // Counter to rate-limit scanning (scan every 2s, not every 100ms)
         let mut scan_cooldown: u32 = 0;
+        // Counter to rate-limit hook retries (retry every 5s on failure)
+        let mut hook_cooldown: u32 = 0;
 
         loop {
             let state = app.state::<Mutex<WizState>>();
@@ -43,7 +45,7 @@ pub fn spawn_telemetry_loop(app: AppHandle) {
                             for client_arc in new_clients {
                                 let idx = wiz.clients.len();
                                 let label = WizState::client_label(idx);
-                                tracing::info!("Auto-scan: found client {label}");
+                                eprintln!("[arcane] Auto-scan: found client {label}");
                                 wiz.clients.insert(label, client_arc);
                             }
 
@@ -54,7 +56,7 @@ pub fn spawn_telemetry_loop(app: AppHandle) {
                             }
                         }
                         Err(e) => {
-                            tracing::warn!("Auto-scan failed: {e}");
+                            eprintln!("[arcane] Auto-scan failed: {e}");
                         }
                     }
 
@@ -68,23 +70,29 @@ pub fn spawn_telemetry_loop(app: AppHandle) {
             }
 
             // ── Phase 2: Auto-hook unhooked clients ─────────────────────
-            {
+            if hook_cooldown == 0 {
                 let wiz = state.lock().unwrap();
                 for (label, client_arc) in &wiz.clients {
                     let mut client = client_arc.blocking_lock();
                     // Only activate if not already hooked and client is running.
                     if !client.hook_handler.has_any_hooks() && client.is_running() {
-                        tracing::info!("Auto-hook: activating hooks for {label}");
+                        eprintln!("[arcane] Auto-hook: activating hooks for {label}");
                         match client.activate_hooks() {
                             Ok(()) => {
-                                tracing::info!("Auto-hook: hooks activated for {label}");
+                                eprintln!("[arcane] Auto-hook: hooks activated for {label} ✓");
                             }
                             Err(e) => {
-                                tracing::warn!("Auto-hook: failed for {label}: {e}");
+                                eprintln!("[arcane] Auto-hook: FAILED for {label}: {e}");
+                                // Don't retry for 5 seconds (50 × 100ms)
+                                hook_cooldown = 50;
                             }
                         }
                     }
                 }
+            }
+
+            if hook_cooldown > 0 {
+                hook_cooldown -= 1;
             }
 
             // ── Phase 3: Read + emit telemetry ──────────────────────────

@@ -10,7 +10,7 @@ pub struct ClientEquipmentBehavior {
 }
 
 impl ClientEquipmentBehavior {
-    pub fn new(reader: std::sync::Arc<dyn crate::memory::memory_object::MemoryReader>, base_address: u64) -> Result<Self> {
+    pub fn new(reader: std::sync::Arc<dyn crate::memory::reader::MemoryReader>, base_address: u64) -> Result<Self> {
         Ok(Self {
             inner: DynamicMemoryObject::new(reader, base_address)?,
         })
@@ -51,7 +51,7 @@ impl ClientEquipmentBehavior {
 }
 
 impl MemoryObject for ClientEquipmentBehavior {
-    fn reader(&self) -> std::sync::Arc<dyn crate::memory::memory_object::MemoryReader> {
+    fn reader(&self) -> std::sync::Arc<dyn crate::memory::reader::MemoryReader> {
         self.inner.reader()
     }
 
@@ -67,7 +67,7 @@ pub struct ClientWizEquipmentBehavior {
 }
 
 impl ClientWizEquipmentBehavior {
-    pub fn new(reader: std::sync::Arc<dyn crate::memory::memory_object::MemoryReader>, base_address: u64) -> Result<Self> {
+    pub fn new(reader: std::sync::Arc<dyn crate::memory::reader::MemoryReader>, base_address: u64) -> Result<Self> {
         Ok(Self {
             inner: ClientEquipmentBehavior::new(reader, base_address)?,
         })
@@ -94,7 +94,7 @@ impl std::ops::Deref for ClientWizEquipmentBehavior {
 }
 
 impl MemoryObject for ClientWizEquipmentBehavior {
-    fn reader(&self) -> std::sync::Arc<dyn crate::memory::memory_object::MemoryReader> {
+    fn reader(&self) -> std::sync::Arc<dyn crate::memory::reader::MemoryReader> {
         self.inner.reader()
     }
 

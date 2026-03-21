@@ -1,5 +1,6 @@
+use crate::memory::reader::MemoryReaderExt;
 use crate::errors::Result;
-use crate::memory::memory_object::MemoryReader;
+use crate::memory::MemoryReader;
 use crate::memory::objects::core_object::CoreObject;
 use crate::memory::objects::actor_body::ActorBody;
 use crate::memory::objects::client_zone::ClientZone;
@@ -24,18 +25,18 @@ impl<R: MemoryReader + 'static> ClientObject<R> {
         self.base.read_base_address()
     }
 
-    pub async fn try_get_inventory_behavior(&self) -> Result<Option<u64>> {
-        let behavior = self.base.search_behavior_by_name("WizardInventoryBehavior").await?;
+    pub fn try_get_inventory_behavior(&self) -> Result<Option<u64>> {
+        let behavior = self.base.search_behavior_by_name("WizardInventoryBehavior")?;
         Ok(behavior)
     }
 
-    pub async fn try_get_equipment_behavior(&self) -> Result<Option<u64>> {
-        let behavior = self.base.search_behavior_by_name("WizardEquipmentBehavior").await?;
+    pub fn try_get_equipment_behavior(&self) -> Result<Option<u64>> {
+        let behavior = self.base.search_behavior_by_name("WizardEquipmentBehavior")?;
         Ok(behavior)
     }
 
-    pub async fn actor_body(&self) -> Result<Option<ActorBody<R>>> {
-        let behavior = self.base.search_behavior_by_name("AnimationBehavior").await?;
+    pub fn actor_body(&self) -> Result<Option<ActorBody<R>>> {
+        let behavior = self.base.search_behavior_by_name("AnimationBehavior")?;
         if let Some(addr) = behavior {
             // Need to read from the behavior address 0x70
             let animation_behavior_addr = self.reader().read_typed::<u64>((addr + 0x70) as usize)?;
@@ -47,16 +48,16 @@ impl<R: MemoryReader + 'static> ClientObject<R> {
         Ok(None)
     }
 
-    pub async fn object_name(&self) -> Result<Option<String>> {
+    pub fn object_name(&self) -> Result<Option<String>> {
         Ok(None)
     }
 
-    pub async fn display_name(&self) -> Result<Option<String>> {
+    pub fn display_name(&self) -> Result<Option<String>> {
         Ok(None)
     }
 
-    pub async fn parent(&self) -> Result<Option<ClientObject<R>>> {
-        let core_parent = self.base.parent().await?;
+    pub fn parent(&self) -> Result<Option<ClientObject<R>>> {
+        let core_parent = self.base.parent()?;
         if let Some(p) = core_parent {
             Ok(Some(ClientObject::new(self.reader(), p.read_base_address()?)))
         } else {
@@ -64,11 +65,11 @@ impl<R: MemoryReader + 'static> ClientObject<R> {
         }
     }
 
-    pub async fn children(&self) -> Result<Vec<ClientObject<R>>> {
+    pub fn children(&self) -> Result<Vec<ClientObject<R>>> {
         Ok(vec![])
     }
 
-    pub async fn client_zone(&self) -> Result<Option<ClientZone<R>>> {
+    pub fn client_zone(&self) -> Result<Option<ClientZone<R>>> {
         let addr = self.base.read_value_from_offset::<i64>(304)?;
         if addr == 0 {
             return Ok(None);
@@ -76,8 +77,8 @@ impl<R: MemoryReader + 'static> ClientObject<R> {
         Ok(Some(ClientZone::new(self.reader(), addr as u64)))
     }
 
-    pub async fn object_template(&self) -> Result<Option<u64>> {
-        let core_template = self.base.object_template().await?;
+    pub fn object_template(&self) -> Result<Option<u64>> {
+        let core_template = self.base.object_template()?;
         if let Some(t) = core_template {
             Ok(Some(t.read_base_address()?))
         } else {
@@ -85,15 +86,15 @@ impl<R: MemoryReader + 'static> ClientObject<R> {
         }
     }
 
-    pub async fn character_id(&self) -> Result<u64> {
+    pub fn character_id(&self) -> Result<u64> {
         self.base.read_value_from_offset::<u64>(448)
     }
 
-    pub async fn write_character_id(&self, character_id: u64) -> Result<()> {
+    pub fn write_character_id(&self, character_id: u64) -> Result<()> {
         self.base.write_value_to_offset::<u64>(448, &character_id)
     }
 
-    pub async fn game_stats(&self) -> Result<Option<u64>> {
+    pub fn game_stats(&self) -> Result<Option<u64>> {
         let addr = self.base.read_value_from_offset::<i64>(560)?;
         if addr == 0 {
             return Ok(None);
@@ -101,7 +102,7 @@ impl<R: MemoryReader + 'static> ClientObject<R> {
         Ok(Some(addr as u64))
     }
 
-    pub async fn fetch_npc_behavior_template(&self) -> Result<Option<u64>> {
+    pub fn fetch_npc_behavior_template(&self) -> Result<Option<u64>> {
         Ok(None)
     }
 }

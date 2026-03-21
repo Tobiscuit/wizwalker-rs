@@ -158,6 +158,15 @@ pub trait GameStats: MemoryObject {
         self.write_value_to_offset(172, &potion_charge)
     }
 
+    // TODO: offset 176, type: SharedPointer<Ladder>
+    // fn arena_ladder(&self) -> Result<...> { ... }
+
+    // TODO: offset 192, type: SharedPointer<Ladder>
+    // fn derby_ladder(&self) -> Result<...> { ... }
+
+    // TODO: offset 208, type: SharedPointer<Ladder>
+    // fn bracket_ladder(&self) -> Result<...> { ... }
+
     fn bonus_hitpoints(&self) -> Result<i32> {
         self.read_value_from_offset(224)
     }
@@ -961,11 +970,11 @@ pub trait GameStats: MemoryObject {
 }
 
 pub struct CurrentGameStats {
-    inner: DynamicMemoryObject,
+    _inner: DynamicMemoryObject,
 }
 
 impl CurrentGameStats {
-    pub fn new(reader: std::sync::Arc<dyn crate::memory::memory_object::MemoryReader>) -> Result<Self> {
+    pub fn new(_reader: std::sync::Arc<dyn crate::memory::reader::MemoryReader>) -> Result<Self> {
         // Find base address dynamically as per python
         // but since we aren't provided with hook_handler, just return dummy or require base addr
         // Wait, Python does: return await self.hook_handler.read_current_player_stat_base()
@@ -975,11 +984,11 @@ impl CurrentGameStats {
 }
 
 pub struct DynamicGameStats {
-    inner: DynamicMemoryObject,
+    pub inner: DynamicMemoryObject,
 }
 
 impl DynamicGameStats {
-    pub fn new(reader: std::sync::Arc<dyn crate::memory::memory_object::MemoryReader>, base_address: u64) -> Result<Self> {
+    pub fn new(reader: std::sync::Arc<dyn crate::memory::reader::MemoryReader>, base_address: u64) -> Result<Self> {
         Ok(Self {
             inner: DynamicMemoryObject::new(reader, base_address)?,
         })
@@ -987,7 +996,7 @@ impl DynamicGameStats {
 }
 
 impl MemoryObject for DynamicGameStats {
-    fn reader(&self) -> std::sync::Arc<dyn crate::memory::memory_object::MemoryReader> {
+    fn reader(&self) -> std::sync::Arc<dyn crate::memory::reader::MemoryReader> {
         self.inner.reader()
     }
     fn read_base_address(&self) -> Result<u64> {

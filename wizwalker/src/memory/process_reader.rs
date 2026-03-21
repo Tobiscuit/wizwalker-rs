@@ -145,7 +145,7 @@ impl ProcessMemoryReader {
     }
 
     /// Scan within a specific module's address range.
-    fn scan_module(
+    pub(crate) fn scan_module(
         &self,
         base_address: usize,
         module_size: usize,

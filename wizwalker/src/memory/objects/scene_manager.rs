@@ -20,7 +20,7 @@ impl DynamicSceneManager {
         Self { inner }
     }
 
-    pub async fn fog_mode(&self) -> Result<FogMode> {
+    pub fn fog_mode(&self) -> Result<FogMode> {
         let val: i32 = self.inner.read_value_from_offset(0x180)?;
         match val {
             0 => Ok(FogMode::None),
@@ -32,56 +32,56 @@ impl DynamicSceneManager {
         }
     }
 
-    pub async fn write_fog_mode(&self, mode: FogMode) -> Result<()> {
+    pub fn write_fog_mode(&self, mode: FogMode) -> Result<()> {
         let val = mode as i32;
         self.inner.write_value_to_offset(0x180, &val)
     }
 
-    pub async fn fog_density(&self) -> Result<f32> {
+    pub fn fog_density(&self) -> Result<f32> {
         self.inner.read_value_from_offset(0x184)
     }
 
-    pub async fn write_fog_density(&self, density: f32) -> Result<()> {
+    pub fn write_fog_density(&self, density: f32) -> Result<()> {
         self.inner.write_value_to_offset(0x184, &density)
     }
 
-    pub async fn fog_density_target(&self) -> Result<f32> {
+    pub fn fog_density_target(&self) -> Result<f32> {
         self.inner.read_value_from_offset(0x188)
     }
 
-    pub async fn write_fog_density_target(&self, target: f32) -> Result<()> {
+    pub fn write_fog_density_target(&self, target: f32) -> Result<()> {
         self.inner.write_value_to_offset(0x188, &target)
     }
 
-    pub async fn fog_start_density(&self) -> Result<f32> {
+    pub fn fog_start_density(&self) -> Result<f32> {
         self.inner.read_value_from_offset(0x18C)
     }
 
-    pub async fn write_fog_start_density(&self, start: f32) -> Result<()> {
+    pub fn write_fog_start_density(&self, start: f32) -> Result<()> {
         self.inner.write_value_to_offset(0x18C, &start)
     }
 
-    pub async fn fog_color_red(&self) -> Result<f32> {
+    pub fn fog_color_red(&self) -> Result<f32> {
         self.inner.read_value_from_offset(0x190)
     }
 
-    pub async fn write_fog_color_red(&self, red: f32) -> Result<()> {
+    pub fn write_fog_color_red(&self, red: f32) -> Result<()> {
         self.inner.write_value_to_offset(0x190, &red)
     }
 
-    pub async fn fog_color_green(&self) -> Result<f32> {
+    pub fn fog_color_green(&self) -> Result<f32> {
         self.inner.read_value_from_offset(0x194)
     }
 
-    pub async fn write_fog_color_green(&self, green: f32) -> Result<()> {
+    pub fn write_fog_color_green(&self, green: f32) -> Result<()> {
         self.inner.write_value_to_offset(0x194, &green)
     }
 
-    pub async fn fog_color_blue(&self) -> Result<f32> {
+    pub fn fog_color_blue(&self) -> Result<f32> {
         self.inner.read_value_from_offset(0x198)
     }
 
-    pub async fn write_fog_color_blue(&self, blue: f32) -> Result<()> {
+    pub fn write_fog_color_blue(&self, blue: f32) -> Result<()> {
         self.inner.write_value_to_offset(0x198, &blue)
     }
 }

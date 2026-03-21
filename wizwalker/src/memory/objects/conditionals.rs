@@ -148,7 +148,7 @@ impl Requirement {
         Self { inner }
     }
 
-    pub async fn apply_not(&self) -> Result<bool> {
+    pub fn apply_not(&self) -> Result<bool> {
         self.inner.read_value_from_offset(72)
     }
 }
@@ -162,11 +162,11 @@ impl ReqCombatHealth {
         Self { requirement: Requirement::new(inner) }
     }
 
-    pub async fn min_percent(&self) -> Result<f32> {
+    pub fn min_percent(&self) -> Result<f32> {
         self.requirement.inner.read_value_from_offset(88)
     }
 
-    pub async fn max_percent(&self) -> Result<f32> {
+    pub fn max_percent(&self) -> Result<f32> {
         self.requirement.inner.read_value_from_offset(92)
     }
 }
@@ -180,11 +180,11 @@ impl ReqHangingOverTime {
         Self { requirement: Requirement::new(inner) }
     }
 
-    pub async fn min_count(&self) -> Result<i32> {
+    pub fn min_count(&self) -> Result<i32> {
         self.requirement.inner.read_value_from_offset(92)
     }
 
-    pub async fn max_count(&self) -> Result<i32> {
+    pub fn max_count(&self) -> Result<i32> {
         self.requirement.inner.read_value_from_offset(96)
     }
 }
@@ -198,7 +198,7 @@ impl ReqIsSchool {
         Self { requirement: Requirement::new(inner) }
     }
 
-    // pub async fn magic_school_name(&self) -> Result<String>
+    // pub fn magic_school_name(&self) -> Result<String>
 }
 
 pub struct ReqHangingWard {
@@ -210,11 +210,11 @@ impl ReqHangingWard {
         Self { requirement: Requirement::new(inner) }
     }
 
-    pub async fn min_count(&self) -> Result<i32> {
+    pub fn min_count(&self) -> Result<i32> {
         self.requirement.inner.read_value_from_offset(92)
     }
 
-    pub async fn max_count(&self) -> Result<i32> {
+    pub fn max_count(&self) -> Result<i32> {
         self.requirement.inner.read_value_from_offset(96)
     }
 }
@@ -228,19 +228,19 @@ impl ReqHangingEffectType {
         Self { requirement: Requirement::new(inner) }
     }
 
-    pub async fn param_low(&self) -> Result<i32> {
+    pub fn param_low(&self) -> Result<i32> {
         self.requirement.inner.read_value_from_offset(92)
     }
 
-    pub async fn param_high(&self) -> Result<i32> {
+    pub fn param_high(&self) -> Result<i32> {
         self.requirement.inner.read_value_from_offset(96)
     }
 
-    pub async fn min_count(&self) -> Result<i32> {
+    pub fn min_count(&self) -> Result<i32> {
         self.requirement.inner.read_value_from_offset(100)
     }
 
-    pub async fn max_count(&self) -> Result<i32> {
+    pub fn max_count(&self) -> Result<i32> {
         self.requirement.inner.read_value_from_offset(104)
     }
 }
@@ -264,11 +264,11 @@ impl ReqShadowPipCount {
         Self { requirement: Requirement::new(inner) }
     }
 
-    pub async fn min_pips(&self) -> Result<i32> {
+    pub fn min_pips(&self) -> Result<i32> {
         self.requirement.inner.read_value_from_offset(88)
     }
 
-    pub async fn max_pips(&self) -> Result<i32> {
+    pub fn max_pips(&self) -> Result<i32> {
         self.requirement.inner.read_value_from_offset(92)
     }
 }
@@ -282,11 +282,11 @@ impl ReqPipCount {
         Self { requirement: Requirement::new(inner) }
     }
 
-    pub async fn min_pips(&self) -> Result<i32> {
+    pub fn min_pips(&self) -> Result<i32> {
         self.requirement.inner.read_value_from_offset(88)
     }
 
-    pub async fn max_pips(&self) -> Result<i32> {
+    pub fn max_pips(&self) -> Result<i32> {
         self.requirement.inner.read_value_from_offset(92)
     }
 }
@@ -340,11 +340,11 @@ impl ReqHangingCharm {
         Self { requirement: ConditionalSpellEffectRequirement::new(inner) }
     }
 
-    pub async fn min_count(&self) -> Result<i32> {
+    pub fn min_count(&self) -> Result<i32> {
         self.requirement.requirement.inner.read_value_from_offset(92)
     }
 
-    pub async fn max_count(&self) -> Result<i32> {
+    pub fn max_count(&self) -> Result<i32> {
         self.requirement.requirement.inner.read_value_from_offset(96)
     }
 }

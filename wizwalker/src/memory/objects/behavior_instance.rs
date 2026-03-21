@@ -1,5 +1,5 @@
 use crate::errors::Result;
-use crate::memory::memory_object::{DynamicMemoryObject, MemoryObject, MemoryObjectExt};
+use crate::memory::memory_object::{DynamicMemoryObject, MemoryObject};
 use super::behavior_template::DynamicBehaviorTemplate;
 
 pub trait BehaviorInstance: MemoryObject {
@@ -35,7 +35,7 @@ pub struct DynamicBehaviorInstance {
 }
 
 impl DynamicBehaviorInstance {
-    pub fn new(reader: std::sync::Arc<dyn crate::memory::memory_object::MemoryReader>, base_address: u64) -> Result<Self> {
+    pub fn new(reader: std::sync::Arc<dyn crate::memory::reader::MemoryReader>, base_address: u64) -> Result<Self> {
         Ok(Self {
             inner: DynamicMemoryObject::new(reader, base_address)?,
         })
@@ -43,7 +43,7 @@ impl DynamicBehaviorInstance {
 }
 
 impl MemoryObject for DynamicBehaviorInstance {
-    fn reader(&self) -> std::sync::Arc<dyn crate::memory::memory_object::MemoryReader> {
+    fn reader(&self) -> std::sync::Arc<dyn crate::memory::reader::MemoryReader> {
         self.inner.reader()
     }
 

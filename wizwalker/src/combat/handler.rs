@@ -1,25 +1,25 @@
-// I'll start the handler port
-use crate::client::WizWalkerClient;
+// Combat handler — orchestrates combat rounds, card selection, and targeting.
+use crate::client::Client;
 use crate::combat::card::CombatCard;
 use crate::combat::member::CombatMember;
-use crate::memory::objects::duel::{DuelPhase, DynamicDuel};
+use crate::memory::objects::duel::DuelPhase;
 use crate::memory::objects::spell_effect::{EffectTarget, SpellEffects};
 use crate::memory::objects::window::{DynamicWindow, WindowFlags};
-use crate::utils::{maybe_wait_for_value_with_timeout, wait_for_value};
-use crate::errors::{WizWalkerMemoryError, MemoryInvalidated, MemoryReadError, ReadingEnumFailed};
+use crate::errors::WizWalkerError;
+
+// Alias: Jules used WizWalkerMemoryError throughout — map it for compatibility.
+type WizWalkerMemoryError = WizWalkerError;
 
 use std::sync::Arc;
-use std::pin::Pin;
 use tokio::time::{sleep, Duration};
-use futures::future::Future;
 
 pub struct CombatHandler {
-    pub client: Arc<WizWalkerClient>,
+    pub client: Arc<Client>,
     spell_check_boxes: tokio::sync::Mutex<Option<Vec<DynamicWindow>>>,
 }
 
 impl CombatHandler {
-    pub fn new(client: Arc<WizWalkerClient>) -> Self {
+    pub fn new(client: Arc<Client>) -> Self {
         Self {
             client,
             spell_check_boxes: tokio::sync::Mutex::new(None),
@@ -33,7 +33,7 @@ impl CombatHandler {
     pub async fn handle_combat(&self) -> Result<(), WizWalkerMemoryError> {
         while self.in_combat().await? {
             self.wait_for_planning_phase(0.5).await?;
-            if let Ok(phase) = self.client.duel.duel_phase().await {
+            if let Ok(phase) = self.client.duel.as_ref().expect("duel not initialized").duel_phase() {
                 if phase != DuelPhase::Planning {
                     break;
                 }
@@ -54,7 +54,7 @@ impl CombatHandler {
 
     pub async fn wait_for_planning_phase(&self, sleep_time: f32) -> Result<(), WizWalkerMemoryError> {
         loop {
-            match self.client.duel.duel_phase().await {
+            match self.client.duel.as_ref().expect("duel not initialized").duel_phase() {
                 Ok(phase) if phase == DuelPhase::Planning || phase == DuelPhase::Ended => break,
                 _ => sleep(Duration::from_secs_f32(sleep_time)).await,
             }
@@ -88,7 +88,7 @@ impl CombatHandler {
     }
 
     pub async fn in_combat(&self) -> Result<bool, WizWalkerMemoryError> {
-        self.client.in_battle().await
+        Ok(self.client.in_battle())
     }
 
     async fn get_card_windows(&self) -> Result<Vec<DynamicWindow>, WizWalkerMemoryError> {
@@ -97,10 +97,10 @@ impl CombatHandler {
             return Ok(windows.clone());
         }
 
-        let spell_checkbox_windows = self.client.root_window.get_windows_with_type("SpellCheckBox").await?;
+        let spell_checkbox_windows = self.client.root_window.as_ref().expect("root_window not initialized").get_windows_with_type("SpellCheckBox")?;
         let mut filtered = Vec::new();
         for w in spell_checkbox_windows {
-            if w.name().await? != "PetCard" {
+            if w.name()? != "PetCard" {
                 filtered.push(w);
             }
         }
@@ -114,7 +114,7 @@ impl CombatHandler {
         let mut cards = Vec::new();
 
         for spell_checkbox in spell_checkbox_windows.into_iter().rev() {
-            if spell_checkbox.flags().await?.contains(&WindowFlags::Visible) {
+            if spell_checkbox.flags()?.contains(WindowFlags::VISIBLE) {
                 cards.push(CombatCard::new(self.clone(), spell_checkbox));
             }
         }
@@ -123,7 +123,7 @@ impl CombatHandler {
     }
 
     pub async fn get_members(self: &Arc<Self>) -> Result<Vec<CombatMember>, WizWalkerMemoryError> {
-        let combatant_windows = self.client.root_window.get_windows_with_name("CombatantControl").await?;
+        let combatant_windows = self.client.root_window.as_ref().expect("root_window not initialized").get_windows_with_name("CombatantControl")?;
         let mut members = Vec::new();
 
         for window in combatant_windows {
@@ -137,7 +137,7 @@ impl CombatHandler {
         for _ in 0..retries {
             if let Ok(members) = self.get_members().await {
                 for member in members {
-                    if let Ok(is_client) = member.is_client().await {
+                    if let Ok(is_client) = member.is_client() {
                         if is_client {
                             return Ok(member);
                         }
@@ -150,15 +150,16 @@ impl CombatHandler {
     }
 
     pub async fn round_number(&self) -> Result<u32, WizWalkerMemoryError> {
-        self.client.duel.round_num().await
+        let round = self.client.duel.as_ref().expect("duel not initialized").round_num()?;
+        Ok(round as u32)
     }
 
     pub async fn pass_button(&self) -> Result<(), WizWalkerMemoryError> {
-        let pos_done_window = self.client.root_window.get_windows_with_name("DoneWindow").await?;
+        let pos_done_window = self.client.root_window.as_ref().expect("root_window not initialized").get_windows_with_name("DoneWindow")?;
         if !pos_done_window.is_empty() {
             let done_window = &pos_done_window[0];
-            if done_window.is_visible().await? {
-                let pos_defeated_pass_button = done_window.get_windows_with_name("DefeatedPassButton").await?;
+            if done_window.is_visible()? {
+                let pos_defeated_pass_button = done_window.get_windows_with_name("DefeatedPassButton")?;
                 if !pos_defeated_pass_button.is_empty() {
                     return self.client.mouse_handler.click_window(&pos_defeated_pass_button[0], false).await;
                 }
@@ -181,7 +182,7 @@ impl AoeHandler {
         while self.handler.in_combat().await? {
             self.handler.wait_for_planning_phase(0.5).await?;
 
-            if let Ok(phase) = self.handler.client.duel.duel_phase().await {
+            if let Ok(phase) = self.handler.client.duel.as_ref().expect("duel not initialized").duel_phase() {
                 if phase == DuelPhase::Ended {
                     break;
                 }
@@ -197,7 +198,7 @@ impl AoeHandler {
 
     async fn wait_for_non_planning_phase(&self, sleep_time: f32) -> Result<(), WizWalkerMemoryError> {
         loop {
-            match self.handler.client.duel.duel_phase().await {
+            match self.handler.client.duel.as_ref().expect("duel not initialized").duel_phase() {
                 Ok(phase) if phase != DuelPhase::Planning || phase == DuelPhase::Ended => break,
                 _ => sleep(Duration::from_secs_f32(sleep_time)).await,
             }
@@ -209,7 +210,7 @@ impl AoeHandler {
         for _ in 0..retries {
             if let Ok(members) = self.handler.get_members().await {
                 for member in members {
-                    if let Ok(is_client) = member.is_client().await {
+                    if let Ok(is_client) = member.is_client() {
                         if is_client {
                             return Ok(member);
                         }
@@ -345,12 +346,12 @@ impl CombatHandler {
             let mut has_aoe_effect = false;
             if let Ok(effects) = card.get_spell_effects().await {
                 for effect in effects {
-                    if let Ok(effect_type) = effect.maybe_read_type_name().await {
+                    if let Ok(effect_type) = effect.maybe_read_type_name() {
                         if effect_type.to_lowercase().contains("variable") || effect_type.to_lowercase().contains("random") {
-                            if let Ok(sub_effects) = effect.maybe_effect_list().await {
+                            if let Ok(sub_effects) = effect.maybe_effect_list() {
                                 for sub_effect in sub_effects {
-                                    if let Ok(target) = sub_effect.effect_target().await {
-                                        if target == EffectTarget::EnemyTeam || target == EffectTarget::EnemyTeamAllAtOnce {
+                                    if let Ok(target) = sub_effect.effect_target() {
+                                        if target == EffectTarget::EnemyTeam as i32 || target == EffectTarget::EnemyTeamAllAtOnce as i32 {
                                             has_aoe_effect = true;
                                             break;
                                         }
@@ -358,8 +359,8 @@ impl CombatHandler {
                                 }
                             }
                         } else {
-                            if let Ok(target) = effect.effect_target().await {
-                                if target == EffectTarget::EnemyTeam || target == EffectTarget::EnemyTeamAllAtOnce {
+                            if let Ok(target) = effect.effect_target() {
+                                if target == EffectTarget::EnemyTeam as i32 || target == EffectTarget::EnemyTeamAllAtOnce as i32 {
                                     has_aoe_effect = true;
                                     break;
                                 }
@@ -384,8 +385,8 @@ impl CombatHandler {
                 if type_name == "Enchantment" {
                     if let Ok(effects) = card.get_spell_effects().await {
                         for effect in effects {
-                            if let Ok(et) = effect.effect_type().await {
-                                if et == SpellEffects::ModifyCardDamage {
+                            if let Ok(et) = effect.effect_type() {
+                                if et == SpellEffects::ModifyCardDamage as i32 {
                                     matches.push(card);
                                     break; // Found matching effect, go to next card
                                 }
@@ -403,7 +404,7 @@ impl CombatHandler {
                 let mut dmg = 0;
                 if let Ok(effects) = card.get_spell_effects().await {
                     if !effects.is_empty() {
-                        if let Ok(d) = effects[0].effect_param().await {
+                        if let Ok(d) = effects[0].effect_param() {
                             dmg = d;
                         }
                     }
@@ -423,7 +424,7 @@ impl CombatHandler {
         let members = self.get_members().await?;
         let mut matches = Vec::new();
         for member in members {
-            if let Ok(is_monster) = member.is_monster().await {
+            if let Ok(is_monster) = member.is_monster() {
                 if is_monster {
                     matches.push(member);
                 }
@@ -436,7 +437,7 @@ impl CombatHandler {
         let members = self.get_members().await?;
         let mut matches = Vec::new();
         for member in members {
-            if let Ok(is_player) = member.is_player().await {
+            if let Ok(is_player) = member.is_player() {
                 if is_player {
                     matches.push(member);
                 }
@@ -448,7 +449,7 @@ impl CombatHandler {
     pub async fn get_member_named(self: &Arc<Self>, name: &str) -> Result<CombatMember, WizWalkerMemoryError> {
         let members = self.get_members().await?;
         for member in members {
-            if let Ok(member_name) = member.name().await {
+            if let Ok(member_name) = member.name() {
                 if member_name.to_lowercase().contains(&name.to_lowercase()) {
                     return Ok(member);
                 }
@@ -486,10 +487,10 @@ impl CombatHandler {
     }
 
     pub async fn attempt_willcast(self: &Arc<Self>, on_member: Option<&str>, on_client: bool) -> Result<bool, WizWalkerMemoryError> {
-        let spell_checkbox_windows = self.client.root_window.get_windows_with_type("SpellCheckBox").await?;
+        let spell_checkbox_windows = self.client.root_window.as_ref().expect("root_window not initialized").get_windows_with_type("SpellCheckBox")?;
         let mut pet_card_win = None;
         for w in spell_checkbox_windows {
-            if w.name().await? == "PetCard" {
+            if w.name()? == "PetCard" {
                 pet_card_win = Some(w);
                 break;
             }
@@ -522,11 +523,11 @@ impl CombatHandler {
     }
 
     pub async fn flee_button(&self) -> Result<(), WizWalkerMemoryError> {
-        let pos_done_window = self.client.root_window.get_windows_with_name("DoneWindow").await?;
+        let pos_done_window = self.client.root_window.as_ref().expect("root_window not initialized").get_windows_with_name("DoneWindow")?;
         if !pos_done_window.is_empty() {
             let done_window = &pos_done_window[0];
-            if done_window.is_visible().await? {
-                let pos_defeated_flee_button = done_window.get_windows_with_name("DefeatedFleeButton").await?;
+            if done_window.is_visible()? {
+                let pos_defeated_flee_button = done_window.get_windows_with_name("DefeatedFleeButton")?;
                 if !pos_defeated_flee_button.is_empty() {
                     return self.client.mouse_handler.click_window(&pos_defeated_flee_button[0], false).await;
                 }

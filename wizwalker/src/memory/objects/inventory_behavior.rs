@@ -7,7 +7,7 @@ pub struct InventoryBehaviorBase {
 }
 
 impl InventoryBehaviorBase {
-    pub fn new(reader: std::sync::Arc<dyn crate::memory::memory_object::MemoryReader>, base_address: u64) -> Result<Self> {
+    pub fn new(reader: std::sync::Arc<dyn crate::memory::reader::MemoryReader>, base_address: u64) -> Result<Self> {
         Ok(Self {
             inner: DynamicMemoryObject::new(reader, base_address)?,
         })
@@ -26,7 +26,7 @@ impl InventoryBehaviorBase {
 }
 
 impl MemoryObject for InventoryBehaviorBase {
-    fn reader(&self) -> std::sync::Arc<dyn crate::memory::memory_object::MemoryReader> {
+    fn reader(&self) -> std::sync::Arc<dyn crate::memory::reader::MemoryReader> {
         self.inner.reader()
     }
 
@@ -42,7 +42,7 @@ pub struct ClientInventoryBehavior {
 }
 
 impl ClientInventoryBehavior {
-    pub fn new(reader: std::sync::Arc<dyn crate::memory::memory_object::MemoryReader>, base_address: u64) -> Result<Self> {
+    pub fn new(reader: std::sync::Arc<dyn crate::memory::reader::MemoryReader>, base_address: u64) -> Result<Self> {
         Ok(Self {
             inner: InventoryBehaviorBase::new(reader, base_address)?,
         })
@@ -58,7 +58,7 @@ impl std::ops::Deref for ClientInventoryBehavior {
 }
 
 impl MemoryObject for ClientInventoryBehavior {
-    fn reader(&self) -> std::sync::Arc<dyn crate::memory::memory_object::MemoryReader> {
+    fn reader(&self) -> std::sync::Arc<dyn crate::memory::reader::MemoryReader> {
         self.inner.reader()
     }
 
@@ -74,7 +74,7 @@ pub struct ClientWizInventoryBehavior {
 }
 
 impl ClientWizInventoryBehavior {
-    pub fn new(reader: std::sync::Arc<dyn crate::memory::memory_object::MemoryReader>, base_address: u64) -> Result<Self> {
+    pub fn new(reader: std::sync::Arc<dyn crate::memory::reader::MemoryReader>, base_address: u64) -> Result<Self> {
         Ok(Self {
             inner: ClientInventoryBehavior::new(reader, base_address)?,
         })
@@ -122,7 +122,7 @@ impl std::ops::Deref for ClientWizInventoryBehavior {
 }
 
 impl MemoryObject for ClientWizInventoryBehavior {
-    fn reader(&self) -> std::sync::Arc<dyn crate::memory::memory_object::MemoryReader> {
+    fn reader(&self) -> std::sync::Arc<dyn crate::memory::reader::MemoryReader> {
         self.inner.reader()
     }
 

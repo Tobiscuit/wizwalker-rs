@@ -1,9 +1,10 @@
-use windows::Win32::Foundation::{BOOL, HWND, LPARAM, RECT, CloseHandle};
+use windows::core::BOOL;
+use windows::Win32::Foundation::{HWND, LPARAM, RECT, CloseHandle};
 use windows::Win32::System::Threading::{GetExitCodeProcess, OpenProcess, PROCESS_QUERY_INFORMATION};
 use windows::Win32::UI::WindowsAndMessaging::{
     EnumWindows, GetClassNameW, GetForegroundWindow, GetWindowRect, GetWindowTextW, GetWindowThreadProcessId, SetForegroundWindow, SetWindowTextW,
 };
-use windows::core::{PCWSTR, PWSTR};
+use windows::core::PCWSTR;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Rectangle {
@@ -16,7 +17,7 @@ pub struct Rectangle {
 pub fn get_foreground_window() -> Option<isize> {
     unsafe {
         let hwnd = GetForegroundWindow();
-        if hwnd.0 == 0 {
+        if hwnd.0 == std::ptr::null_mut() {
             None
         } else {
             Some(hwnd.0 as isize)
@@ -39,7 +40,7 @@ pub fn get_window_title(handle: isize) -> String {
 }
 
 pub fn set_window_title(handle: isize, window_title: &str) {
-    let mut encoded: Vec<u16> = window_title.encode_utf16().chain(std::iter::once(0)).collect();
+    let encoded: Vec<u16> = window_title.encode_utf16().chain(std::iter::once(0)).collect();
     unsafe {
         let _ = SetWindowTextW(HWND(handle as *mut _), PCWSTR(encoded.as_ptr()));
     }
@@ -77,11 +78,11 @@ pub fn check_if_process_running(handle: isize) -> bool {
     exit_code == 259
 }
 
-unsafe extern "system" fn enum_windows_callback(hwnd: HWND, lparam: LPARAM) -> BOOL {
+unsafe extern "system" fn enum_windows_callback(hwnd: HWND, lparam: LPARAM) -> BOOL { unsafe {
     let handles = &mut *(lparam.0 as *mut Vec<isize>);
     handles.push(hwnd.0 as isize);
-    true.into()
-}
+    BOOL(1)
+}}
 
 pub fn get_windows_from_predicate<F>(mut predicate: F) -> Vec<isize>
 where
@@ -188,3 +189,26 @@ pub async fn maybe_wait_for_any_value_with_timeout<T>(
         Err(_) => Err(WizWalkerMemoryError::Other("Timeout".to_string())),
     }
 }
+
+/// Returns the Wizard101 installation directory by reading the Windows registry.
+///
+/// Looks for the install path under `HKLM\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\{A9E27FF5-...}`.
+pub fn get_wiz_install() -> crate::errors::Result<std::path::PathBuf> {
+    // TODO: Implement registry lookup. For now, use the default Steam/standalone path.
+    Ok(std::path::PathBuf::from(r"C:\ProgramData\KingsIsle Entertainment\Wizard101"))
+}
+
+/// Returns the WizWalker cache folder, creating it if necessary.
+pub fn get_cache_folder() -> crate::errors::Result<std::path::PathBuf> {
+    let cache_dir = std::env::temp_dir().join("wizwalker");
+    let _ = std::fs::create_dir_all(&cache_dir);
+    Ok(cache_dir)
+}
+
+/// Parses a template ID file (msgpack/json) into a mapping of template IDs.
+pub fn parse_template_id_file(data: &[u8]) -> crate::errors::Result<std::collections::HashMap<u32, String>> {
+    // TODO: Implement actual msgpack/json parsing.
+    let _ = data;
+    Ok(std::collections::HashMap::new())
+}
+

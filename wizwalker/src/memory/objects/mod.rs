@@ -61,7 +61,8 @@ pub use combat_resolver::*;
 pub use core_object::*;
 pub use core_template::*;
 pub use duel::*;
-pub use enums::*;
+// Note: enums are imported explicitly where needed (e.g., `use super::enums::DuelPhase;`)
+// to avoid ambiguous re-exports.
 pub use equipment_behavior::*;
 pub use equipment_set::*;
 pub use equipped_item_info::*;

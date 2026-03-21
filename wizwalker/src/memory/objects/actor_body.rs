@@ -1,6 +1,7 @@
-use crate::errors::{Result, WizWalkerError};
+use crate::errors::Result;
 use crate::types::{Orient, XYZ};
-use crate::memory::memory_object::MemoryReader;
+use crate::memory::MemoryReader;
+use crate::memory::reader::MemoryReaderExt;
 use std::sync::Arc;
 
 pub struct ActorBody<R: MemoryReader + 'static> {
@@ -25,67 +26,67 @@ impl<R: MemoryReader + 'static> ActorBody<R> {
         self.reader.write_typed::<T>((self.base_address + offset) as usize, value)
     }
 
-    pub async fn position(&self) -> Result<XYZ> {
+    pub fn position(&self) -> Result<XYZ> {
         self.read_value_from_offset::<XYZ>(88)
     }
 
-    pub async fn write_position(&self, position: &XYZ) -> Result<()> {
+    pub fn write_position(&self, position: &XYZ) -> Result<()> {
         self.write_value_to_offset::<XYZ>(88, position)
     }
 
-    pub async fn orientation(&self) -> Result<Orient> {
+    pub fn orientation(&self) -> Result<Orient> {
         self.read_value_from_offset::<Orient>(100)
     }
 
-    pub async fn write_orientation(&self, orient: &Orient) -> Result<()> {
+    pub fn write_orientation(&self, orient: &Orient) -> Result<()> {
         self.write_value_to_offset::<Orient>(100, orient)
     }
 
-    pub async fn pitch(&self) -> Result<f32> {
+    pub fn pitch(&self) -> Result<f32> {
         self.read_value_from_offset::<f32>(100)
     }
 
-    pub async fn write_pitch(&self, pitch: f32) -> Result<()> {
+    pub fn write_pitch(&self, pitch: f32) -> Result<()> {
         self.write_value_to_offset::<f32>(100, &pitch)
     }
 
-    pub async fn roll(&self) -> Result<f32> {
+    pub fn roll(&self) -> Result<f32> {
         self.read_value_from_offset::<f32>(104)
     }
 
-    pub async fn write_roll(&self, roll: f32) -> Result<()> {
+    pub fn write_roll(&self, roll: f32) -> Result<()> {
         self.write_value_to_offset::<f32>(104, &roll)
     }
 
-    pub async fn yaw(&self) -> Result<f32> {
+    pub fn yaw(&self) -> Result<f32> {
         self.read_value_from_offset::<f32>(108)
     }
 
-    pub async fn write_yaw(&self, yaw: f32) -> Result<()> {
+    pub fn write_yaw(&self, yaw: f32) -> Result<()> {
         self.write_value_to_offset::<f32>(108, &yaw)
     }
 
-    pub async fn scale(&self) -> Result<f32> {
+    pub fn scale(&self) -> Result<f32> {
         self.read_value_from_offset::<f32>(112)
     }
 
-    pub async fn write_scale(&self, scale: f32) -> Result<()> {
+    pub fn write_scale(&self, scale: f32) -> Result<()> {
         self.write_value_to_offset::<f32>(112, &scale)
     }
 
-    pub async fn height(&self) -> Result<f32> {
+    pub fn height(&self) -> Result<f32> {
         self.read_value_from_offset::<f32>(132)
     }
 
-    pub async fn write_height(&self, height: f32) -> Result<()> {
+    pub fn write_height(&self, height: f32) -> Result<()> {
         self.write_value_to_offset::<f32>(132, &height)
     }
 
-    pub async fn model_update_scheduled(&self) -> Result<bool> {
+    pub fn model_update_scheduled(&self) -> Result<bool> {
         self.read_value_from_offset::<bool>(136)
     }
 
-    pub async fn write_model_update_scheduled(&self, state: bool) -> Result<()> {
+    pub fn write_model_update_scheduled(&self, state: bool) -> Result<()> {
         self.write_value_to_offset::<bool>(136, &state)
     }
 }

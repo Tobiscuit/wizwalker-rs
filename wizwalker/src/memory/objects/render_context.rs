@@ -10,7 +10,7 @@ impl RenderContext {
         Self { inner }
     }
 
-    pub async fn ui_scale(&self) -> Result<f32> {
+    pub fn ui_scale(&self) -> Result<f32> {
         self.inner.read_value_from_offset(152)
     }
 }

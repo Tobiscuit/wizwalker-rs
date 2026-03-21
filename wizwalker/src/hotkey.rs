@@ -4,15 +4,14 @@ use std::pin::Pin;
 use std::sync::Arc;
 use tokio::sync::{mpsc, Mutex};
 use tokio::task::JoinHandle;
-use windows::Win32::Foundation::{HWND, LPARAM, WPARAM};
 use windows::Win32::UI::Input::KeyboardAndMouse::{
     RegisterHotKey, UnregisterHotKey, HOT_KEY_MODIFIERS, MOD_ALT, MOD_CONTROL, MOD_NOREPEAT,
     MOD_SHIFT,
 };
 use windows::Win32::UI::WindowsAndMessaging::{
-    DispatchMessageW, GetMessageW, PeekMessageW, MSG, PM_REMOVE,
+    PeekMessageW, MSG, PM_REMOVE,
 };
-use crate::errors::{Error, Result};
+use crate::errors::{WizWalkerError, Result};
 use bitflags::bitflags;
 
 const MAX_HOTKEY_ID: i32 = 0xBFFF;
@@ -43,7 +42,7 @@ impl GlobalHotkeyIdentifierManager {
     fn get_id(&mut self) -> Result<i32> {
         let id_list_len = self.hotkey_id_list.len();
         if id_list_len == MAX_HOTKEY_ID as usize {
-            return Err(Error::Runtime(format!("Max hotkey id of {} reached", MAX_HOTKEY_ID)));
+            return Err(WizWalkerError::Other(format!("Max hotkey id of {} reached", MAX_HOTKEY_ID)));
         }
 
         let all_true = self.hotkey_id_list.iter().all(|&x| x);
@@ -105,7 +104,7 @@ impl HotkeyListener {
 
     pub fn start(&mut self) -> Result<()> {
         if self.is_running() {
-            return Err(Error::Value("This listener has already been started".to_string()));
+            return Err(WizWalkerError::Other("This listener has already been started".to_string()));
         }
 
         let (cmd_tx, mut cmd_rx) = mpsc::unbounded_channel::<MessageLoopCommand>();
@@ -145,7 +144,7 @@ impl HotkeyListener {
                                         Ok(id)
                                     } else {
                                         id_manager.free_id(id);
-                                        Err(Error::Runtime("RegisterHotKey failed".to_string()))
+                                        Err(WizWalkerError::Other("RegisterHotKey failed".to_string()))
                                     }
                                 }
                             });
@@ -207,7 +206,7 @@ impl HotkeyListener {
         let mut hotkeys = self.hotkeys.lock().await;
 
         if hotkeys.contains_key(&(key, modifiers)) {
-            return Err(Error::Value(format!("{} with modifiers {:?} already registered", key, modifiers)));
+            return Err(WizWalkerError::Other(format!("{} with modifiers {:?} already registered", key, modifiers)));
         }
 
         if let Some(tx) = &self.command_tx {
@@ -216,12 +215,12 @@ impl HotkeyListener {
                 keycode: key,
                 modifiers,
                 response_tx: resp_tx,
-            }).map_err(|_| Error::Runtime("Failed to send register command".into()))?;
+            }).map_err(|_| WizWalkerError::Other("Failed to send register command".into()))?;
 
-            let id = resp_rx.await.map_err(|_| Error::Runtime("Response channel closed".into()))??;
+            let id = resp_rx.await.map_err(|_| WizWalkerError::Other("Response channel closed".into()))??;
             hotkeys.insert((key, modifiers), id);
         } else {
-            return Err(Error::Runtime("Listener is not running".into()));
+            return Err(WizWalkerError::Other("Listener is not running".into()));
         }
 
         let mut callbacks = self.callbacks.lock().await;
@@ -235,7 +234,7 @@ impl HotkeyListener {
         let mut hotkeys = self.hotkeys.lock().await;
 
         let id = hotkeys.remove(&(key, modifiers)).ok_or_else(|| {
-            Error::Value(format!("No hotkey registered for key {} with modifiers {:?}", key, modifiers))
+            WizWalkerError::Other(format!("No hotkey registered for key {} with modifiers {:?}", key, modifiers))
         })?;
 
         if let Some(tx) = &self.command_tx {
@@ -243,9 +242,9 @@ impl HotkeyListener {
             tx.send(MessageLoopCommand::Unregister {
                 hotkey_id: id,
                 response_tx: resp_tx,
-            }).map_err(|_| Error::Runtime("Failed to send unregister command".into()))?;
+            }).map_err(|_| WizWalkerError::Other("Failed to send unregister command".into()))?;
 
-            resp_rx.await.map_err(|_| Error::Runtime("Response channel closed".into()))??;
+            resp_rx.await.map_err(|_| WizWalkerError::Other("Response channel closed".into()))??;
         }
 
         let mut callbacks = self.callbacks.lock().await;

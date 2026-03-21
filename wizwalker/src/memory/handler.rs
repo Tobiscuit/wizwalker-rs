@@ -17,18 +17,39 @@ use crate::memory::reader::MemoryReader;
 /// The autobot is a large, rarely-called function in `WizardGraphicalClient.exe`.
 /// We NOP it out and write our hook shellcode into the space.
 ///
-/// # Python equivalent
-/// `wizwalker/memory/handler.py` — `AUTOBOT_PATTERN`
+/// # Pattern derivation
+/// Built from a live hex dump of the current Wizard101 binary (March 2026).
+/// The 12-byte prologue (`48 8B C4 55 41 54 41 55 41 56 41 57`) is unique
+/// in the entire 57MB module (verified with diagnostic scan).
+///
+/// Actual bytes at the match address:
+/// ```text
+/// 48 8B C4 55 41 54 41 55 41 56 41 57  // prologue
+/// 48 8D 68 B8                          // lea rbp, [rax-48h]
+/// 48 81 EC 20 01 00 00                 // sub rsp, 0x120
+/// 4C 8B 71 08                          // mov r14, [rcx+8]
+/// 0F 29 70 B8                          // movaps [rax-48h], xmm6
+/// 0F 29 78 A8                          // movaps [rax-58h], xmm7
+/// ```
+///
+/// 0x2E bytes are wildcards (match any byte).
 pub const AUTOBOT_PATTERN: &[u8] = &[
-    0x48, 0x89, 0x5C, 0x24, 0x2E, 0x48, 0x89, 0x74, 0x24, 0x2E, 0x48, 0x89, 0x7C, 0x24, 0x2E,
-    0x55, 0x41, 0x54, 0x41, 0x55, 0x41, 0x56, 0x41, 0x57,
-    0x48, 0x8D, 0xAC, 0x24, 0x2E, 0x2E, 0x2E, 0x2E, 0x48, 0x81, 0xEC, 0x2E, 0x2E, 0x2E, 0x2E,
-    0x48, 0x8B, 0x05, 0x2E, 0x2E, 0x2E, 0x2E, 0x48, 0x33, 0xC4, 0x48, 0x89, 0x85, 0x2E, 0x2E, 0x2E, 0x2E,
-    0x4C, 0x8B, 0xF1, 0x2E, 0x2E, 0x2E, 0x2E, 0x2E, 0x2E, 0x2E, 0x80, 0x2E, 0x2E, 0x2E, 0x2E, 0x2E, 0x2E, 0x0F, 0x84, 0x2E, 0x2E, 0x2E, 0x2E,
+    // Prologue: mov rax,rsp; push rbp; push r12-r15 (unique in module!)
+    0x48, 0x8B, 0xC4, 0x55, 0x41, 0x54, 0x41, 0x55, 0x41, 0x56, 0x41, 0x57,
+    // lea rbp, [rax-??h] (offset varies between builds)
+    0x2E, 0x2E, 0x2E, 0x2E,
+    // sub rsp, IMM32 (opcode fixed, immediate varies)
+    0x48, 0x81, 0xEC, 0x2E, 0x2E, 0x2E, 0x2E,
+    // mov r14, [rcx+?] (register source for game object)
+    0x4C, 0x8B, 0x2E, 0x2E,
+    // movaps [rax+?], xmm6 — SSE register saves
+    0x0F, 0x29, 0x70, 0x2E,
+    // movaps [rax+?], xmm7
+    0x0F, 0x29, 0x78, 0x2E,
 ];
 
 /// Size of the autobot function that we can safely overwrite.
-pub const AUTOBOT_SIZE: usize = 4100;
+pub const AUTOBOT_SIZE: usize = 3900;
 
 /// Manages memory hooks injected into the Wizard101 process.
 ///

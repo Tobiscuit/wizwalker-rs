@@ -1,5 +1,5 @@
 use crate::errors::Result;
-use crate::memory::memory_object::MemoryReader;
+use crate::memory::MemoryReader;
 use std::sync::Arc;
 
 pub struct CoreTemplate<R: MemoryReader + 'static> {
@@ -16,7 +16,7 @@ impl<R: MemoryReader + 'static> CoreTemplate<R> {
         Ok(self.base_address)
     }
 
-    pub async fn behaviors(&self) -> Result<Vec<u64>> {
+    pub fn behaviors(&self) -> Result<Vec<u64>> {
         // read_dynamic_vector(72) stub
         // Since we don't have DynamicBehaviorTemplate, returning addresses for now
         Ok(vec![])

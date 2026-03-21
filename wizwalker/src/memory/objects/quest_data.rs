@@ -24,11 +24,11 @@ impl QuestData {
         Self { inner }
     }
 
-    pub async fn goal_data(&self) -> Result<HashMap<i32, GoalData>> {
+    pub fn goal_data(&self) -> Result<HashMap<i32, GoalData>> {
         Ok(HashMap::new())
     }
 
-    pub async fn client_tags(&self) -> Result<Option<ClientTagList>> {
+    pub fn client_tags(&self) -> Result<Option<ClientTagList>> {
         let addr: u64 = self.inner.read_value_from_offset(0xC0)?;
         if addr == 0 {
             return Ok(None);
@@ -37,31 +37,31 @@ impl QuestData {
         Ok(Some(ClientTagList::new(inner)))
     }
 
-    pub async fn quest_type(&self) -> Result<i32> {
+    pub fn quest_type(&self) -> Result<i32> {
         self.inner.read_value_from_offset(0xE0)
     }
 
-    pub async fn quest_level(&self) -> Result<i32> {
+    pub fn quest_level(&self) -> Result<i32> {
         self.inner.read_value_from_offset(0xE4)
     }
 
-    pub async fn permit_quest_helper(&self) -> Result<bool> {
+    pub fn permit_quest_helper(&self) -> Result<bool> {
         self.inner.read_value_from_offset(0xF0)
     }
 
-    pub async fn write_permit_quest_helper(&self, val: bool) -> Result<()> {
+    pub fn write_permit_quest_helper(&self, val: bool) -> Result<()> {
         self.inner.write_value_to_offset(0xF0, &val)
     }
 
-    pub async fn mainline(&self) -> Result<bool> {
+    pub fn mainline(&self) -> Result<bool> {
         self.inner.read_value_from_offset(0xF1)
     }
 
-    pub async fn ready_to_turn_in(&self) -> Result<bool> {
+    pub fn ready_to_turn_in(&self) -> Result<bool> {
         self.inner.read_value_from_offset(0xF2)
     }
 
-    pub async fn activity_type(&self) -> Result<ActivityType> {
+    pub fn activity_type(&self) -> Result<ActivityType> {
         let val: i32 = self.inner.read_value_from_offset(0xF4)?;
         match val {
             0 => Ok(ActivityType::NotActivity),
@@ -74,7 +74,7 @@ impl QuestData {
         }
     }
 
-    pub async fn pet_only_quest(&self) -> Result<bool> {
+    pub fn pet_only_quest(&self) -> Result<bool> {
         self.inner.read_value_from_offset(0xF9)
     }
 }

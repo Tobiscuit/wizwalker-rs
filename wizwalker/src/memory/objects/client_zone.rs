@@ -1,5 +1,6 @@
+use crate::memory::reader::MemoryReaderExt;
 use crate::errors::{Result, WizWalkerError};
-use crate::memory::memory_object::MemoryReader;
+use crate::memory::MemoryReader;
 use std::sync::Arc;
 
 pub struct ClientZone<R: MemoryReader + 'static> {
@@ -24,15 +25,15 @@ impl<R: MemoryReader + 'static> ClientZone<R> {
         self.reader.write_typed::<T>((self.base_address + offset) as usize, value)
     }
 
-    pub async fn zone_id(&self) -> Result<i64> {
+    pub fn zone_id(&self) -> Result<i64> {
         self.read_value_from_offset::<i64>(72)
     }
 
-    pub async fn write_zone_id(&self, zone_id: i64) -> Result<()> {
+    pub fn write_zone_id(&self, zone_id: i64) -> Result<()> {
         self.write_value_to_offset::<i64>(72, &zone_id)
     }
 
-    pub async fn zone_name(&self) -> Result<String> {
+    pub fn zone_name(&self) -> Result<String> {
         let chunk_size = 128;
         let mut string_bytes = Vec::new();
         let mut current_offset = 88;
@@ -55,7 +56,7 @@ impl<R: MemoryReader + 'static> ClientZone<R> {
         Ok(String::from_utf8(string_bytes).map_err(|_| WizWalkerError::Other("Invalid UTF-8".into()))?)
     }
 
-    pub async fn write_zone_name(&self, _zone_name: &str) -> Result<()> {
+    pub fn write_zone_name(&self, _zone_name: &str) -> Result<()> {
         Err(WizWalkerError::Other("write_zone_name not fully implemented".into()))
     }
 }
