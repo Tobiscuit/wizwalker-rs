@@ -20,10 +20,10 @@ export function Sidebar() {
         </div>
         <div>
           <h1 className="text-xl font-bold text-accent-violet font-[var(--font-headline)]">
-            WizWalker
+            Arcane
           </h1>
           <p className="text-[10px] uppercase tracking-widest text-text-muted">
-            Arcane Architect
+            For Wizard101
           </p>
         </div>
       </div>

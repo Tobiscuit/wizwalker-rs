@@ -206,7 +206,7 @@ export function Settings() {
           <div className="bg-bg-sunken rounded-3xl p-8 border border-text-dim/10">
             <div className="flex items-center gap-6 mb-6">
               <h2 className="font-[var(--font-headline)] text-3xl font-bold text-accent-violet">
-                WizWalker
+                Arcane
               </h2>
               <span className="px-3 py-1 rounded-full bg-accent-rose/10 text-accent-rose text-[10px] font-black uppercase tracking-widest">
                 Built with Rust

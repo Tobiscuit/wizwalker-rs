@@ -54,7 +54,7 @@ ww.run(main)
             Bot <span className="font-bold text-accent-violet">Scripting</span>
           </h3>
           <p className="text-text-muted text-sm">
-            Write, edit, and run automation scripts with the WizWalker API.
+            Write, edit, and run automation scripts with the Arcane API.
           </p>
         </div>
         <div className="flex gap-3">
