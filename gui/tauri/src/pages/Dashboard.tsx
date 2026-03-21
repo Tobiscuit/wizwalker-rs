@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from "react";
+import { listen } from "@tauri-apps/api/event";
 import { ToggleSwitch } from "../components/ToggleSwitch";
 import { useWizWalker, type ClientInfo } from "../hooks/useWizWalker";
 import { useTelemetry } from "../hooks/useTelemetry";
@@ -37,10 +38,17 @@ export function Dashboard() {
   const [activeClient, setActiveClient] = useState("P1");
   const [scanStatus, setScanStatus] = useState<"idle" | "scanning" | "none_found">("idle");
 
-  // Load initial state from the backend
+  // Load initial state + listen for auto-detected clients from backend
   useEffect(() => {
     wiz.getClients().then(setClients).catch(() => {});
     wiz.getToggleStates().then(setToggles).catch(() => {});
+
+    // When the background loop auto-detects new clients, refresh the list.
+    const unlisten = listen("clients-changed", () => {
+      wiz.getClients().then(setClients).catch(() => {});
+    });
+
+    return () => { unlisten.then((fn) => fn()); };
   }, []);
 
   // Toggle a hook via IPC → update local state on success
