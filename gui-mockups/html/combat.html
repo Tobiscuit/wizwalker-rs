@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&amp;family=Inter:wght@300;400;500;600&amp;family=JetBrains+Mono&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "surface-container-lowest": "#0f0d16",
+                        "on-surface": "#e6e0ee",
+                        "surface-variant": "#36333e",
+                        "secondary-fixed-dim": "#ccbeff",
+                        "primary-fixed": "#e9ddff",
+                        "on-tertiary-fixed-variant": "#653e00",
+                        "secondary-container": "#4a3d7c",
+                        "primary-fixed-dim": "#d0bcff",
+                        "primary-container": "#a078ff",
+                        "surface-tint": "#d0bcff",
+                        "surface-dim": "#14121b",
+                        "inverse-primary": "#6d3bd7",
+                        "secondary-fixed": "#e7deff",
+                        "inverse-surface": "#e6e0ee",
+                        "on-tertiary-fixed": "#2a1700",
+                        "outline": "#958ea0",
+                        "on-secondary-fixed": "#1e0e4e",
+                        "tertiary-fixed-dim": "#ffb95f",
+                        "tertiary-container": "#ca8100",
+                        "on-tertiary": "#472a00",
+                        "surface-container": "#211e28",
+                        "background": "#14121b",
+                        "tertiary": "#ffb95f",
+                        "outline-variant": "#494454",
+                        "on-primary-fixed": "#23005c",
+                        "secondary": "#ccbeff",
+                        "on-secondary": "#332664",
+                        "error-container": "#93000a",
+                        "on-error-container": "#ffdad6",
+                        "surface-container-low": "#1c1a24",
+                        "surface-container-highest": "#36333e",
+                        "tertiary-fixed": "#ffddb8",
+                        "inverse-on-surface": "#322f39",
+                        "on-primary-fixed-variant": "#5516be",
+                        "error": "#ffb4ab",
+                        "on-secondary-container": "#baabf3",
+                        "on-primary-container": "#340080",
+                        "on-primary": "#3c0091",
+                        "on-secondary-fixed-variant": "#4a3d7c",
+                        "on-error": "#690005",
+                        "primary": "#d0bcff",
+                        "surface-container-high": "#2b2933",
+                        "surface-bright": "#3b3842",
+                        "surface": "#14121b",
+                        "on-tertiary-container": "#3e2400",
+                        "on-background": "#e6e0ee",
+                        "on-surface-variant": "#cbc3d7"
+                    },
+                    fontFamily: {
+                        "headline": ["Space Grotesk"],
+                        "body": ["Inter"],
+                        "label": ["Inter"],
+                        "mono": ["JetBrains Mono"]
+                    },
+                    borderRadius: { "DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "2xl": "1rem", "full": "9999px" },
+                },
+            },
+        }
+    </script>
+<style>
+        .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24; }
+        .glass-panel { background: rgba(160, 120, 255, 0.1); backdrop-filter: blur(20px); }
+        .sunken-well { background: #0f0d16; box-shadow: inset 0 2px 4px rgba(0,0,0,0.5); }
+        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #494454; border-radius: 10px; }
+        .cyan-glow { text-shadow: 0 0 8px rgba(34, 211, 238, 0.4); }
+    </style>
+</head>
+<body class="bg-background text-on-surface font-body selection:bg-primary-container selection:text-on-primary-container min-h-screen overflow-hidden">
+<aside class="fixed left-0 top-0 h-full z-50 flex flex-col w-64 bg-[#1c1a24]/80 backdrop-blur-xl border-r border-[#494454]/20 shadow-[0px_20px_40px_rgba(13,11,20,0.4)] font-['Space_Grotesk'] tracking-tight">
+<div class="px-8 py-10">
+<h1 class="text-xl font-bold text-[#d0bcff]">WizWalker</h1>
+<p class="text-[10px] uppercase tracking-[0.2em] text-[#ccbeff]/40 mt-1">Arcane Architect</p>
+</div>
+<nav class="flex-1 px-4 space-y-2">
+<a class="flex items-center gap-4 px-4 py-3 text-[#ccbeff]/60 hover:text-[#d0bcff] hover:bg-[#36333e]/50 transition-all duration-200 rounded-xl group" href="#">
+<span class="material-symbols-outlined text-xl">home</span>
+<span class="text-sm font-medium">Dashboard</span>
+</a>
+<a class="flex items-center gap-4 px-4 py-3 text-[#d0bcff] bg-[#36333e] rounded-xl shadow-[0_0_15px_rgba(139,92,246,0.15)] transition-transform scale-102" href="#">
+<span class="material-symbols-outlined text-xl" style="font-variation-settings: 'FILL' 1;">swords</span>
+<span class="text-sm font-medium">Combat</span>
+</a>
+<a class="flex items-center gap-4 px-4 py-3 text-[#ccbeff]/60 hover:text-[#d0bcff] hover:bg-[#36333e]/50 transition-all duration-200 rounded-xl group" href="#">
+<span class="material-symbols-outlined text-xl">explore</span>
+<span class="text-sm font-medium">Navigation</span>
+</a>
+<a class="flex items-center gap-4 px-4 py-3 text-[#ccbeff]/60 hover:text-[#d0bcff] hover:bg-[#36333e]/50 transition-all duration-200 rounded-xl group" href="#">
+<span class="material-symbols-outlined text-xl">photo_camera</span>
+<span class="text-sm font-medium">Camera</span>
+</a>
+<a class="flex items-center gap-4 px-4 py-3 text-[#ccbeff]/60 hover:text-[#d0bcff] hover:bg-[#36333e]/50 transition-all duration-200 rounded-xl group" href="#">
+<span class="material-symbols-outlined text-xl">code</span>
+<span class="text-sm font-medium">Scripting</span>
+</a>
+<a class="flex items-center gap-4 px-4 py-3 text-[#ccbeff]/60 hover:text-[#d0bcff] hover:bg-[#36333e]/50 transition-all duration-200 rounded-xl group" href="#">
+<span class="material-symbols-outlined text-xl">settings</span>
+<span class="text-sm font-medium">Settings</span>
+</a>
+</nav>
+<div class="p-6">
+<div class="flex items-center gap-3 p-3 bg-surface-container-low rounded-2xl border border-outline-variant/10">
+<img alt="WizWalker Logo" class="w-10 h-10 rounded-xl" data-alt="Stylized avatar of a wizard architect" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAjUwksnD1oeKWg5uX-W72wnqSfMTzd0VBwnt7TFmT4iAfbDAOH9fiWPibMGnq1BuCTZpfWrL9umMixGQJlz7MJe7jVEhEz1r0onUAEP2T62ehvJhGsZRt7ezKcanZ2H66nJx8Ylr-DdZebcRgC-uOt4bJrLtcMAd39hDMmCduFvFvHxt7_nNjPikMqAjvp1w_kXRkhpqJwv3IIAYmLjTDXHuvKAsaZ8eMYhR4f4jAP4WALf8BJfp67VeI4GzIfp6vbJK2U1rBlBVpP"/>
+<div class="flex flex-col">
+<span class="text-xs font-bold text-primary">MASTER_KEY</span>
+<span class="text-[10px] text-outline italic">Status: Ascended</span>
+</div>
+</div>
+</div>
+</aside>
+<main class="ml-64 min-h-screen flex flex-col">
+<header class="flex justify-between items-center w-full px-8 py-6 bg-[#14121b]/50 backdrop-blur-md font-['Space_Grotesk'] font-medium">
+<div class="flex items-center gap-4">
+<span class="text-lg font-black text-[#d0bcff] tracking-widest">WizWalker</span>
+<div class="h-4 w-[1px] bg-outline-variant/30"></div>
+<span class="text-sm text-outline tracking-wider uppercase">Combat &amp; Strategy</span>
+</div>
+<div class="flex items-center gap-6">
+<button class="text-[#ccbeff]/70 hover:text-white transition-colors">
+<span class="material-symbols-outlined">notifications</span>
+</button>
+<button class="text-[#ccbeff]/70 hover:text-white transition-colors">
+<span class="material-symbols-outlined">account_circle</span>
+</button>
+</div>
+</header>
+<section class="flex-1 px-12 py-8 overflow-y-auto custom-scrollbar pb-24">
+<div class="grid grid-cols-1 md:grid-cols-3 gap-8 mb-16">
+<!-- Card 1 -->
+<div class="glass-panel p-6 rounded-2xl border border-primary/10 flex flex-col justify-between group hover:border-primary/30 transition-all">
+<div class="flex justify-between items-start mb-4">
+<div>
+<h3 class="font-headline text-lg text-primary leading-tight">Auto Combat</h3>
+<p class="text-xs text-outline mt-1 pr-4">Automatically fights battles using your playstyle</p>
+</div>
+<div class="w-12 h-6 bg-tertiary/20 rounded-full relative cursor-pointer">
+<div class="absolute right-1 top-1 w-4 h-4 bg-tertiary rounded-full shadow-[0_0_10px_#ffb95f]"></div>
+</div>
+</div>
+</div>
+<!-- Card 2 -->
+<div class="glass-panel p-6 rounded-2xl border border-primary/10 flex flex-col justify-between group hover:border-primary/30 transition-all">
+<div class="flex justify-between items-start mb-4">
+<div>
+<h3 class="font-headline text-lg text-primary leading-tight">Auto Dialogue</h3>
+<p class="text-xs text-outline mt-1 pr-4">Advances quest dialogue automatically</p>
+</div>
+<div class="w-12 h-6 bg-tertiary/20 rounded-full relative cursor-pointer">
+<div class="absolute right-1 top-1 w-4 h-4 bg-tertiary rounded-full shadow-[0_0_10px_#ffb95f]"></div>
+</div>
+</div>
+</div>
+<!-- Card 3 -->
+<div class="glass-panel p-6 rounded-2xl border border-primary/10 flex flex-col justify-between group hover:border-primary/30 transition-all">
+<div class="flex justify-between items-start mb-4">
+<div>
+<h3 class="font-headline text-lg text-primary leading-tight">Kill Minions First</h3>
+<p class="text-xs text-outline mt-1 pr-4">Prioritize minion targets before boss</p>
+</div>
+<div class="w-12 h-6 bg-tertiary/20 rounded-full relative cursor-pointer">
+<div class="absolute right-1 top-1 w-4 h-4 bg-tertiary rounded-full shadow-[0_0_10px_#ffb95f]"></div>
+</div>
+</div>
+</div>
+</div>
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-16">
+<div class="space-y-8">
+<h2 class="font-headline text-2xl font-bold tracking-tight text-on-surface flex items-center gap-3">
+                        Combat Analysis
+                        <span class="h-[1px] flex-1 bg-gradient-to-r from-outline-variant/50 to-transparent"></span>
+</h2>
+<div class="grid grid-cols-2 gap-6">
+<div class="space-y-2">
+<label class="text-[10px] uppercase tracking-widest text-outline ml-1">Caster Index</label>
+<div class="relative">
+<select class="w-full bg-surface-container-highest border-none rounded-xl text-sm py-3 px-4 appearance-none focus:ring-1 focus:ring-primary/40 text-on-surface">
+<option>Index 1</option>
+<option>Index 2</option>
+<option>Index 3</option>
+</select>
+<span class="material-symbols-outlined absolute right-3 top-3 text-outline pointer-events-none">expand_more</span>
+</div>
+</div>
+<div class="space-y-2">
+<label class="text-[10px] uppercase tracking-widest text-outline ml-1">Target Index</label>
+<div class="relative">
+<select class="w-full bg-surface-container-highest border-none rounded-xl text-sm py-3 px-4 appearance-none focus:ring-1 focus:ring-primary/40 text-on-surface">
+<option>Index 1</option>
+<option>Index 2</option>
+<option>Index 3</option>
+</select>
+<span class="material-symbols-outlined absolute right-3 top-3 text-outline pointer-events-none">expand_more</span>
+</div>
+</div>
+</div>
+<div class="grid grid-cols-2 gap-6 items-end">
+<div class="space-y-2">
+<label class="text-[10px] uppercase tracking-widest text-outline ml-1">Base Damage</label>
+<input class="w-full bg-surface-container-highest border-none rounded-xl text-sm py-3 px-4 focus:ring-1 focus:ring-primary/40 text-on-surface" type="number" value="1000"/>
+</div>
+<div class="space-y-2">
+<label class="text-[10px] uppercase tracking-widest text-outline ml-1">School</label>
+<div class="relative">
+<select class="w-full bg-surface-container-highest border-none rounded-xl text-sm py-3 px-4 appearance-none focus:ring-1 focus:ring-primary/40 text-on-surface">
+<option>Storm</option>
+<option>Fire</option>
+<option>Ice</option>
+<option>Myth</option>
+</select>
+<span class="material-symbols-outlined absolute right-3 top-3 text-outline pointer-events-none">expand_more</span>
+</div>
+</div>
+</div>
+<div class="flex items-center gap-3 py-2">
+<div class="w-5 h-5 bg-surface-container-highest border border-outline-variant/30 rounded flex items-center justify-center cursor-pointer group hover:border-primary/50 transition-colors">
+<span class="material-symbols-outlined text-sm text-primary" style="font-variation-settings: 'FILL' 1;">check</span>
+</div>
+<span class="text-xs text-outline tracking-wide">Calculate Critical multiplier in analysis</span>
+</div>
+<div class="sunken-well p-8 rounded-2xl font-mono space-y-4">
+<div class="flex justify-between items-center group">
+<span class="text-outline text-xs uppercase tracking-widest">Total Damage</span>
+<span class="text-2xl text-cyan-400 cyan-glow">4,287</span>
+</div>
+<div class="h-[1px] w-full bg-outline-variant/10"></div>
+<div class="grid grid-cols-2 gap-y-4">
+<div class="flex items-center gap-4">
+<span class="text-outline text-[10px] uppercase">Resist</span>
+<span class="text-[#22d3ee]">42%</span>
+</div>
+<div class="flex items-center gap-4">
+<span class="text-outline text-[10px] uppercase">Pierce</span>
+<span class="text-[#22d3ee]">18%</span>
+</div>
+<div class="flex items-center gap-4">
+<span class="text-outline text-[10px] uppercase">Critical</span>
+<span class="text-[#22d3ee]">891</span>
+</div>
+<div class="flex items-center gap-4">
+<span class="text-outline text-[10px] uppercase">Block</span>
+<span class="text-[#22d3ee]">456</span>
+</div>
+</div>
+</div>
+<div class="flex gap-4">
+<button class="flex-1 py-3 px-6 bg-gradient-to-br from-primary to-primary-container text-on-primary-container font-medium rounded-xl hover:scale-[1.02] transition-transform shadow-[0_0_20px_rgba(139,92,246,0.3)]">
+                            View Stats
+                        </button>
+<button class="py-3 px-4 bg-surface-bright/20 border border-outline-variant/20 text-on-surface rounded-xl hover:bg-surface-bright/30 transition-colors">
+<span class="material-symbols-outlined">content_copy</span>
+</button>
+<button class="py-3 px-4 bg-surface-bright/20 border border-outline-variant/20 text-on-surface rounded-xl hover:bg-surface-bright/30 transition-colors">
+<span class="material-symbols-outlined">swap_vert</span>
+</button>
+</div>
+</div>
+<div class="space-y-8">
+<h2 class="font-headline text-2xl font-bold tracking-tight text-on-surface flex items-center gap-3">
+                        Combat Playstyle
+                        <span class="h-[1px] flex-1 bg-gradient-to-r from-outline-variant/50 to-transparent"></span>
+</h2>
+<div class="sunken-well p-0 rounded-2xl overflow-hidden flex flex-col h-[320px]">
+<div class="bg-surface-container-high px-4 py-2 flex items-center justify-between border-b border-outline-variant/10">
+<span class="text-[10px] uppercase tracking-widest text-outline">Priority_Script.ini</span>
+<div class="flex gap-1">
+<div class="w-2 h-2 rounded-full bg-red-500/50"></div>
+<div class="w-2 h-2 rounded-full bg-amber-500/50"></div>
+<div class="w-2 h-2 rounded-full bg-green-500/50"></div>
+</div>
+</div>
+<div class="p-6 font-mono text-sm text-[#ccbeff]/80 flex-1 leading-relaxed">
+<div class="flex gap-4">
+<span class="text-outline/40 text-xs">01</span>
+<span class="text-[#ffb95f]">[Priority]</span>
+</div>
+<div class="flex gap-4">
+<span class="text-outline/40 text-xs">02</span>
+<span>tempest = <span class="text-cyan-400">1</span></span>
+</div>
+<div class="flex gap-4">
+<span class="text-outline/40 text-xs">03</span>
+<span>storm_lord = <span class="text-cyan-400">2</span></span>
+</div>
+<div class="flex gap-4">
+<span class="text-outline/40 text-xs">04</span>
+<span>healing = <span class="text-cyan-400">3</span></span>
+</div>
+<div class="flex gap-4">
+<span class="text-outline/40 text-xs">05</span>
+<span>blade = <span class="text-cyan-400">4</span></span>
+</div>
+<div class="flex gap-4">
+<span class="text-outline/40 text-xs">06</span>
+<span class="animate-pulse">_</span>
+</div>
+</div>
+</div>
+<div class="grid grid-cols-2 gap-4">
+<button class="py-3 px-6 bg-surface-bright/20 border border-outline-variant/20 text-on-surface text-sm rounded-xl hover:bg-surface-bright/30 transition-colors">
+                            Import Playstyle
+                        </button>
+<button class="py-3 px-6 bg-surface-bright/20 border border-outline-variant/20 text-on-surface text-sm rounded-xl hover:bg-surface-bright/30 transition-colors">
+                            Export Playstyle
+                        </button>
+</div>
+<button class="w-full py-3 px-6 bg-gradient-to-br from-primary to-primary-container text-on-primary-container font-medium rounded-xl hover:scale-[1.01] transition-transform">
+                        Set Playstyles
+                    </button>
+<div class="space-y-4 pt-4">
+<div class="flex items-center gap-4 group cursor-pointer">
+<div class="w-6 h-6 bg-surface-container-highest rounded border border-outline-variant/40 flex items-center justify-center group-hover:border-primary/50 transition-colors">
+<span class="material-symbols-outlined text-sm text-primary">check</span>
+</div>
+<div class="flex flex-col">
+<span class="text-sm font-medium text-on-surface">Force School Damage</span>
+<span class="text-[10px] text-outline uppercase tracking-wider">Ignores universal buffs</span>
+</div>
+</div>
+<div class="flex items-center gap-4 group cursor-pointer">
+<div class="w-6 h-6 bg-surface-container-highest rounded border border-outline-variant/40 flex items-center justify-center group-hover:border-primary/50 transition-colors">
+<span class="material-symbols-outlined text-sm text-primary">check</span>
+</div>
+<div class="flex flex-col">
+<span class="text-sm font-medium text-on-surface">Discard Duplicate Cards</span>
+<span class="text-[10px] text-outline uppercase tracking-wider">Maintain hand diversity</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+</section>
+<footer class="fixed bottom-0 left-64 right-0 z-50 flex justify-between items-center px-8 py-3 bg-[#0f0d16] border-t border-[#494454]/10 font-['Inter'] text-[10px] uppercase tracking-[0.2em]">
+<div class="flex items-center gap-8">
+<div class="flex items-center gap-2">
+<span class="w-2 h-2 rounded-full bg-tertiary animate-pulse shadow-[0_0_8px_#ffb95f]"></span>
+<span class="text-[#ffb95f]">Connected</span>
+</div>
+<span class="text-[#ccbeff]/40">v2.4.1 | Memory: 420MB</span>
+</div>
+<div class="flex items-center gap-6">
+<a class="text-[#ccbeff]/40 hover:text-[#ffb95f] transition-colors" href="#">P1 — Wizard City — WizardGraphicalClient.exe</a>
+</div>
+</footer>
+</main>
+<div class="fixed top-0 left-0 w-full h-full pointer-events-none z-[100] border-[20px] border-primary/5 opacity-50 mix-blend-overlay"></div>
+</body></html>

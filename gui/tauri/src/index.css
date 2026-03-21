@@ -1,0 +1,118 @@
+@import "tailwindcss";
+
+/* Fonts loaded via index.html <link> tags (Space Grotesk, Inter, Material Symbols) */
+
+/* ===== Arcane Aether Design System ===== */
+@theme {
+  --color-bg-base: #14121b;
+  --color-bg-surface: #1c1a24;
+  --color-bg-elevated: #211e28;
+  --color-bg-card: #2b2933;
+  --color-bg-card-top: #36333e;
+  --color-bg-sunken: #0f0d16;
+
+  --color-text-primary: #e6e0ee;
+  --color-text-secondary: #ccbeff;
+  --color-text-muted: #9b8ec4;
+  --color-text-dim: #494454;
+
+  --color-accent-violet: #d0bcff;
+  --color-accent-violet-bright: #a078ff;
+  --color-accent-violet-deep: #8b5cf6;
+  --color-accent-violet-dark: #5516be;
+
+  --color-accent-amber: #ffb95f;
+  --color-accent-amber-dark: #ca8100;
+
+  --color-accent-cyan: #06b6d4;
+
+  --color-accent-rose: #ffb4ab;
+  --color-accent-rose-dark: #93000a;
+
+  --color-border-subtle: rgba(73, 68, 84, 0.2);
+  --color-border-outline: #494454;
+
+  --color-glow-violet: rgba(139, 92, 246, 0.15);
+  --color-glow-amber: rgba(255, 185, 95, 0.2);
+
+  --font-headline: 'Space Grotesk', sans-serif;
+  --font-body: 'Inter', sans-serif;
+}
+
+/* ===== Base Styles ===== */
+body {
+  font-family: var(--font-body);
+  background-color: var(--color-bg-base);
+  color: var(--color-text-primary);
+  margin: 0;
+  overflow: hidden;
+  height: 100vh;
+}
+
+#root {
+  height: 100vh;
+  display: flex;
+}
+
+/* ===== Material Symbols ===== */
+.material-symbols-outlined {
+  font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+}
+
+.material-symbols-outlined.filled {
+  font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+}
+
+/* ===== Glass Card ===== */
+.glass-card {
+  background: linear-gradient(135deg, rgba(208, 188, 255, 0.08) 0%, rgba(160, 120, 255, 0.03) 100%);
+  backdrop-filter: blur(20px);
+}
+
+/* ===== Glow Effects ===== */
+.glow-violet {
+  box-shadow: 0 0 20px var(--color-glow-violet);
+}
+
+.glow-amber {
+  box-shadow: 0 0 12px var(--color-glow-amber);
+}
+
+/* ===== Ambient Shadow ===== */
+.shadow-arcane {
+  box-shadow: 0px 20px 40px rgba(13, 11, 20, 0.4);
+}
+
+/* ===== Scrollbar ===== */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--color-bg-base);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-border-outline);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-text-dim);
+}
+
+/* ===== Selection ===== */
+::selection {
+  background: var(--color-accent-violet-bright);
+  color: var(--color-bg-base);
+}
+
+/* ===== Pulse Animation ===== */
+@keyframes pulse-glow {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
+
+.animate-pulse-glow {
+  animation: pulse-glow 2s ease-in-out infinite;
+}

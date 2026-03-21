@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>WizWalker - Settings</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700;900&amp;family=Inter:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "surface-container-highest": "#36333e",
+                        "secondary": "#ccbeff",
+                        "on-secondary": "#332664",
+                        "inverse-on-surface": "#322f39",
+                        "tertiary-fixed": "#ffddb8",
+                        "on-primary-fixed-variant": "#5516be",
+                        "outline-variant": "#494454",
+                        "surface": "#14121b",
+                        "surface-bright": "#3b3842",
+                        "inverse-surface": "#e6e0ee",
+                        "primary-container": "#a078ff",
+                        "on-error": "#690005",
+                        "surface-dim": "#14121b",
+                        "tertiary-container": "#ca8100",
+                        "surface-tint": "#d0bcff",
+                        "error-container": "#93000a",
+                        "surface-container-lowest": "#0f0d16",
+                        "on-tertiary-fixed": "#2a1700",
+                        "on-secondary-fixed-variant": "#4a3d7c",
+                        "background": "#14121b",
+                        "secondary-fixed": "#e7deff",
+                        "primary-fixed": "#e9ddff",
+                        "on-secondary-container": "#baabf3",
+                        "inverse-primary": "#6d3bd7",
+                        "on-surface": "#e6e0ee",
+                        "secondary-fixed-dim": "#ccbeff",
+                        "surface-container-low": "#1c1a24",
+                        "tertiary-fixed-dim": "#ffb95f",
+                        "on-tertiary-fixed-variant": "#653e00",
+                        "on-background": "#e6e0ee",
+                        "error": "#ffb4ab",
+                        "outline": "#958ea0",
+                        "on-tertiary": "#472a00",
+                        "on-error-container": "#ffdad6",
+                        "on-primary-fixed": "#23005c",
+                        "tertiary": "#ffb95f",
+                        "on-tertiary-container": "#3e2400",
+                        "primary-fixed-dim": "#d0bcff",
+                        "secondary-container": "#4a3d7c",
+                        "on-surface-variant": "#cbc3d7",
+                        "primary": "#d0bcff",
+                        "surface-container-high": "#2b2933",
+                        "surface-variant": "#36333e",
+                        "on-primary-container": "#340080",
+                        "surface-container": "#211e28",
+                        "on-primary": "#3c0091",
+                        "on-secondary-fixed": "#1e0e4e"
+                    },
+                    fontFamily: {
+                        "headline": ["Space Grotesk"],
+                        "body": ["Inter"],
+                        "label": ["Inter"]
+                    },
+                    borderRadius: { "DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px" },
+                },
+            },
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        body {
+            background-color: #14121b;
+            color: #e6e0ee;
+            font-family: 'Inter', sans-serif;
+            overflow-x: hidden;
+        }
+        .glass-card {
+            background: linear-gradient(135deg, rgba(208, 188, 255, 0.05) 0%, rgba(160, 120, 255, 0.02) 100%);
+            backdrop-filter: blur(10px);
+        }
+    </style>
+</head>
+<body class="bg-surface text-on-surface">
+<!-- SideNavBar -->
+<nav class="fixed left-0 top-0 h-full flex flex-col py-8 z-40 bg-[#1c1a24] shadow-[20px_0px_40px_rgba(13,11,20,0.4)] w-64">
+<div class="px-8 mb-12">
+<h2 class="font-headline font-black text-primary text-2xl tracking-tighter">WizWalker</h2>
+<p class="font-headline text-[10px] uppercase tracking-widest text-secondary-fixed-dim opacity-60">Arcane Architect</p>
+</div>
+<div class="flex flex-col gap-2 px-4 flex-grow">
+<a class="flex items-center gap-4 text-[#ccbeff]/50 px-4 py-3 hover:bg-[#36333e]/50 hover:text-[#d0bcff] transition-colors rounded-xl group" href="#">
+<span class="material-symbols-outlined" data-icon="grid_view">grid_view</span>
+<span class="font-headline font-medium uppercase tracking-widest text-[10px]">Dashboard</span>
+</a>
+<a class="flex items-center gap-4 text-[#ccbeff]/50 px-4 py-3 hover:bg-[#36333e]/50 hover:text-[#d0bcff] transition-colors rounded-xl group" href="#">
+<span class="material-symbols-outlined" data-icon="swords">swords</span>
+<span class="font-headline font-medium uppercase tracking-widest text-[10px]">Combat</span>
+</a>
+<a class="flex items-center gap-4 text-[#ccbeff]/50 px-4 py-3 hover:bg-[#36333e]/50 hover:text-[#d0bcff] transition-colors rounded-xl group" href="#">
+<span class="material-symbols-outlined" data-icon="explore">explore</span>
+<span class="font-headline font-medium uppercase tracking-widest text-[10px]">Navigation</span>
+</a>
+<a class="flex items-center gap-4 text-[#ccbeff]/50 px-4 py-3 hover:bg-[#36333e]/50 hover:text-[#d0bcff] transition-colors rounded-xl group" href="#">
+<span class="material-symbols-outlined" data-icon="photo_camera">photo_camera</span>
+<span class="font-headline font-medium uppercase tracking-widest text-[10px]">Camera</span>
+</a>
+<a class="flex items-center gap-4 text-[#ccbeff]/50 px-4 py-3 hover:bg-[#36333e]/50 hover:text-[#d0bcff] transition-colors rounded-xl group" href="#">
+<span class="material-symbols-outlined" data-icon="terminal">terminal</span>
+<span class="font-headline font-medium uppercase tracking-widest text-[10px]">Scripting</span>
+</a>
+<!-- Active State: Settings -->
+<a class="flex items-center gap-4 text-[#d0bcff] bg-[#36333e] rounded-xl px-4 py-3 border-l-4 border-[#8b5cf6] transition-all" href="#">
+<span class="material-symbols-outlined text-primary" data-icon="settings" style="font-variation-settings: 'FILL' 1;">settings</span>
+<span class="font-headline font-medium uppercase tracking-widest text-[10px]">Settings</span>
+</a>
+</div>
+<div class="px-6 mt-auto">
+<div class="bg-surface-container-low p-4 rounded-xl border border-outline-variant/20">
+<div class="flex items-center gap-3 mb-3">
+<div class="w-8 h-8 rounded-full bg-primary-container flex items-center justify-center text-on-primary-container font-bold text-xs">AA</div>
+<div>
+<p class="text-[11px] font-bold text-on-surface">Premium Tier</p>
+<p class="text-[9px] text-secondary-fixed-dim opacity-50">Active Session</p>
+</div>
+</div>
+<button class="w-full py-2 bg-gradient-to-r from-primary to-primary-container text-on-primary-container text-[10px] font-bold uppercase tracking-tighter rounded-lg hover:scale-105 transition-transform">
+                    Upgrade Power
+                </button>
+</div>
+</div>
+</nav>
+<!-- Main Content Area -->
+<main class="ml-64 min-h-screen pb-24 px-12 pt-12">
+<!-- Header -->
+<header class="mb-16">
+<h1 class="font-headline text-6xl font-black text-on-surface tracking-tighter mb-2">Settings</h1>
+<p class="text-secondary-fixed-dim opacity-60 max-w-xl">Configure the core parameters of your arcane automation environment. Precision is the architect's greatest spell.</p>
+</header>
+<!-- Bento Grid Layout -->
+<div class="grid grid-cols-12 gap-8">
+<!-- SECTION 1: Hotkey Configuration -->
+<section class="col-span-12 lg:col-span-7 space-y-6">
+<div class="flex items-center gap-3 mb-2">
+<span class="material-symbols-outlined text-primary" data-icon="keyboard">keyboard</span>
+<h3 class="font-headline text-xl font-bold uppercase tracking-wider text-primary">Hotkey Bindings</h3>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+<!-- Binding Items -->
+<div class="glass-card p-4 rounded-xl flex justify-between items-center border border-outline-variant/10 hover:border-primary/20 transition-all">
+<span class="text-sm font-medium text-on-surface/80">Speed Toggle</span>
+<div class="px-3 py-1 bg-surface-container-highest text-primary font-headline font-bold text-xs rounded-lg border border-primary/20 shadow-[0_0_10px_rgba(139,92,246,0.1)]">F5</div>
+</div>
+<div class="glass-card p-4 rounded-xl flex justify-between items-center border border-outline-variant/10 hover:border-primary/20 transition-all">
+<span class="text-sm font-medium text-on-surface/80">Quest Teleport</span>
+<div class="px-3 py-1 bg-surface-container-highest text-primary font-headline font-bold text-xs rounded-lg border border-primary/20 shadow-[0_0_10px_rgba(139,92,246,0.1)]">F7</div>
+</div>
+<div class="glass-card p-4 rounded-xl flex justify-between items-center border border-outline-variant/10 hover:border-primary/20 transition-all">
+<span class="text-sm font-medium text-on-surface/80">Mass Teleport</span>
+<div class="px-3 py-1 bg-surface-container-highest text-primary font-headline font-bold text-xs rounded-lg border border-primary/20 shadow-[0_0_10px_rgba(139,92,246,0.1)]">F6</div>
+</div>
+<div class="glass-card p-4 rounded-xl flex justify-between items-center border border-outline-variant/10 hover:border-primary/20 transition-all">
+<span class="text-sm font-medium text-on-surface/80">XYZ Sync</span>
+<div class="px-3 py-1 bg-surface-container-highest text-primary font-headline font-bold text-xs rounded-lg border border-primary/20 shadow-[0_0_10px_rgba(139,92,246,0.1)]">F8</div>
+</div>
+<div class="glass-card p-4 rounded-xl flex justify-between items-center border border-outline-variant/10 hover:border-primary/20 transition-all">
+<span class="text-sm font-medium text-on-surface/80">Auto Combat</span>
+<div class="px-3 py-1 bg-surface-container-highest text-primary font-headline font-bold text-xs rounded-lg border border-primary/20 shadow-[0_0_10px_rgba(139,92,246,0.1)]">9</div>
+</div>
+<div class="glass-card p-4 rounded-xl flex justify-between items-center border border-outline-variant/10 hover:border-primary/20 transition-all">
+<span class="text-sm font-medium text-on-surface/80">Auto Dialogue</span>
+<div class="px-3 py-1 bg-surface-container-highest text-primary font-headline font-bold text-xs rounded-lg border border-primary/20 shadow-[0_0_10px_rgba(139,92,246,0.1)]">F4</div>
+</div>
+<div class="glass-card p-4 rounded-xl flex justify-between items-center border border-outline-variant/10 hover:border-primary/20 transition-all">
+<span class="text-sm font-medium text-on-surface/80">Auto Sigil</span>
+<div class="px-3 py-1 bg-surface-container-highest text-primary font-headline font-bold text-xs rounded-lg border border-primary/20 shadow-[0_0_10px_rgba(139,92,246,0.1)]">F2</div>
+</div>
+<div class="glass-card p-4 rounded-xl flex justify-between items-center border border-outline-variant/10 hover:border-primary/20 transition-all">
+<span class="text-sm font-medium text-on-surface/80">Auto Questing</span>
+<div class="px-3 py-1 bg-surface-container-highest text-primary font-headline font-bold text-xs rounded-lg border border-primary/20 shadow-[0_0_10px_rgba(139,92,246,0.1)]">F3</div>
+</div>
+<div class="glass-card p-4 rounded-xl flex justify-between items-center border border-outline-variant/10 hover:border-primary/20 transition-all">
+<span class="text-sm font-medium text-on-surface/80">Freecam</span>
+<div class="px-3 py-1 bg-surface-container-highest text-primary font-headline font-bold text-xs rounded-lg border border-primary/20 shadow-[0_0_10px_rgba(139,92,246,0.1)]">F1</div>
+</div>
+<div class="glass-card p-4 rounded-xl flex justify-between items-center border border-outline-variant/10 hover:border-primary/20 transition-all">
+<span class="text-sm font-medium text-on-surface/80">Kill Tool</span>
+<div class="px-3 py-1 bg-surface-container-highest text-primary font-headline font-bold text-xs rounded-lg border border-primary/20 shadow-[0_0_10px_rgba(139,92,246,0.1)]">F9</div>
+</div>
+</div>
+</section>
+<!-- SECTION 2: General Settings -->
+<section class="col-span-12 lg:col-span-5 space-y-6">
+<div class="flex items-center gap-3 mb-2">
+<span class="material-symbols-outlined text-tertiary" data-icon="tune">tune</span>
+<h3 class="font-headline text-xl font-bold uppercase tracking-wider text-tertiary">General Settings</h3>
+</div>
+<div class="bg-surface-container-low p-6 rounded-2xl space-y-6 border border-outline-variant/5">
+<!-- Multiplier Input -->
+<div class="space-y-3">
+<label class="text-[11px] uppercase tracking-widest font-bold text-secondary-fixed-dim opacity-70">Speed Multiplier</label>
+<div class="flex items-center bg-surface-container-highest rounded-xl p-1 border border-outline-variant/20">
+<button class="w-10 h-10 flex items-center justify-center text-on-surface hover:text-primary transition-colors">
+<span class="material-symbols-outlined" data-icon="remove">remove</span>
+</button>
+<input class="flex-grow bg-transparent border-none text-center font-headline font-bold text-lg text-primary focus:ring-0" type="text" value="5.0"/>
+<button class="w-10 h-10 flex items-center justify-center text-on-surface hover:text-primary transition-colors">
+<span class="material-symbols-outlined" data-icon="add">add</span>
+</button>
+</div>
+</div>
+<!-- Toggles -->
+<div class="space-y-4">
+<!-- Toggle ON -->
+<div class="flex justify-between items-center">
+<span class="text-sm font-medium">Auto Potions</span>
+<div class="w-12 h-6 bg-tertiary-container/30 rounded-full relative cursor-pointer border border-tertiary/20 shadow-[0_0_10px_rgba(255,185,95,0.15)]">
+<div class="absolute right-1 top-1 w-4 h-4 bg-tertiary rounded-full shadow-lg"></div>
+</div>
+</div>
+<!-- Toggle ON -->
+<div class="flex justify-between items-center">
+<span class="text-sm font-medium">Discord Rich Presence</span>
+<div class="w-12 h-6 bg-tertiary-container/30 rounded-full relative cursor-pointer border border-tertiary/20 shadow-[0_0_10px_rgba(255,185,95,0.15)]">
+<div class="absolute right-1 top-1 w-4 h-4 bg-tertiary rounded-full shadow-lg"></div>
+</div>
+</div>
+<!-- Toggle OFF -->
+<div class="flex justify-between items-center opacity-60">
+<span class="text-sm font-medium">Drop Logging</span>
+<div class="w-12 h-6 bg-surface-container-highest rounded-full relative cursor-pointer border border-outline-variant/20">
+<div class="absolute left-1 top-1 w-4 h-4 bg-outline rounded-full shadow-lg"></div>
+</div>
+</div>
+<!-- Toggle ON -->
+<div class="flex justify-between items-center">
+<span class="text-sm font-medium">Anti-AFK</span>
+<div class="w-12 h-6 bg-tertiary-container/30 rounded-full relative cursor-pointer border border-tertiary/20 shadow-[0_0_10px_rgba(255,185,95,0.15)]">
+<div class="absolute right-1 top-1 w-4 h-4 bg-tertiary rounded-full shadow-lg"></div>
+</div>
+</div>
+<!-- Toggle ON -->
+<div class="flex justify-between items-center">
+<span class="text-sm font-medium">Auto-Updating</span>
+<div class="w-12 h-6 bg-tertiary-container/30 rounded-full relative cursor-pointer border border-tertiary/20 shadow-[0_0_10px_rgba(255,185,95,0.15)]">
+<div class="absolute right-1 top-1 w-4 h-4 bg-tertiary rounded-full shadow-lg"></div>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- SECTION 3: Appearance -->
+<section class="col-span-12 lg:col-span-6 space-y-6">
+<div class="flex items-center gap-3 mb-2">
+<span class="material-symbols-outlined text-primary" data-icon="palette">palette</span>
+<h3 class="font-headline text-xl font-bold uppercase tracking-wider text-primary">Appearance</h3>
+</div>
+<div class="bg-surface-container-low p-6 rounded-2xl grid grid-cols-1 md:grid-cols-2 gap-8 border border-outline-variant/5">
+<div class="space-y-4">
+<label class="text-[11px] uppercase tracking-widest font-bold text-secondary-fixed-dim opacity-70 block">Theme Selector</label>
+<div class="space-y-2">
+<div class="flex items-center justify-between p-3 bg-primary/10 border border-primary/30 rounded-xl">
+<span class="text-sm font-bold text-primary">Dark</span>
+<span class="material-symbols-outlined text-primary text-sm" data-icon="check_circle" style="font-variation-settings: 'FILL' 1;">check_circle</span>
+</div>
+<div class="flex items-center justify-between p-3 bg-surface-container-highest opacity-40 border border-outline-variant/20 rounded-xl cursor-not-allowed">
+<span class="text-sm font-medium">Light</span>
+<span class="material-symbols-outlined text-xs" data-icon="lock">lock</span>
+</div>
+</div>
+</div>
+<div class="space-y-6">
+<div class="space-y-2">
+<label class="text-[11px] uppercase tracking-widest font-bold text-secondary-fixed-dim opacity-70 block">Language</label>
+<div class="relative">
+<div class="w-full p-3 bg-surface-container-highest border border-outline-variant/20 rounded-xl flex items-center justify-between cursor-pointer group hover:border-primary/40 transition-all">
+<span class="text-sm font-medium">English</span>
+<span class="material-symbols-outlined text-secondary text-sm group-hover:rotate-180 transition-transform" data-icon="expand_more">expand_more</span>
+</div>
+</div>
+</div>
+<div class="flex justify-between items-center">
+<span class="text-sm font-medium">GUI Always On Top</span>
+<div class="w-12 h-6 bg-surface-container-highest rounded-full relative cursor-pointer border border-outline-variant/20">
+<div class="absolute left-1 top-1 w-4 h-4 bg-outline rounded-full shadow-lg"></div>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- SECTION 4: About -->
+<section class="col-span-12 lg:col-span-6 space-y-6">
+<div class="flex items-center gap-3 mb-2">
+<span class="material-symbols-outlined text-secondary" data-icon="info">info</span>
+<h3 class="font-headline text-xl font-bold uppercase tracking-wider text-secondary">About</h3>
+</div>
+<div class="bg-surface-container-low p-8 rounded-2xl border border-outline-variant/5 relative overflow-hidden">
+<!-- Glow effect decoration -->
+<div class="absolute -right-16 -top-16 w-32 h-32 bg-primary/10 blur-[60px] rounded-full"></div>
+<div class="relative z-10 flex flex-col md:flex-row md:items-end justify-between gap-6">
+<div class="space-y-1">
+<h2 class="font-headline text-4xl font-black text-primary tracking-tighter">WizWalker</h2>
+<p class="font-headline text-xs font-bold text-secondary-fixed-dim flex items-center gap-2">
+<span class="opacity-60 uppercase tracking-widest">Version</span>
+<span class="px-2 py-0.5 bg-secondary-container text-on-secondary-container rounded text-[10px]">v2.4.1</span>
+</p>
+</div>
+<div class="flex flex-wrap gap-4 items-center">
+<div class="flex items-center gap-2 px-3 py-1.5 bg-[#2d1b00] border border-tertiary/20 rounded-full">
+<span class="text-[10px] font-bold text-tertiary uppercase tracking-tighter">Built with Rust</span>
+</div>
+<a class="text-[11px] font-bold text-secondary hover:text-primary underline transition-colors" href="#">Source Code</a>
+<span class="text-[11px] font-medium text-on-surface/40">License: GPL v3</span>
+</div>
+</div>
+<div class="mt-8 pt-8 border-t border-outline-variant/10 flex items-center gap-6">
+<div class="flex items-center gap-2 group cursor-pointer">
+<span class="material-symbols-outlined text-secondary group-hover:text-primary transition-colors" data-icon="description">description</span>
+<span class="text-[10px] font-bold uppercase tracking-widest text-on-surface/60 group-hover:text-on-surface transition-colors">Documentation</span>
+</div>
+<div class="flex items-center gap-2 group cursor-pointer">
+<span class="material-symbols-outlined text-secondary group-hover:text-primary transition-colors" data-icon="support_agent">support_agent</span>
+<span class="text-[10px] font-bold uppercase tracking-widest text-on-surface/60 group-hover:text-on-surface transition-colors">Support</span>
+</div>
+</div>
+</div>
+</section>
+</div>
+</main>
+<!-- Footer -->
+<footer class="fixed bottom-0 left-0 w-full z-50 flex justify-between items-center px-6 h-10 bg-[#0f0d16] border-t border-[#494454]/20">
+<div class="flex items-center gap-4">
+<span class="font-body text-[11px] tracking-wide text-tertiary-fixed-dim">System Active • V2.4.0</span>
+<div class="flex items-center gap-2">
+<span class="w-1.5 h-1.5 rounded-full bg-tertiary shadow-[0_0_8px_#ffb95f]"></span>
+<span class="font-body text-[11px] tracking-wide text-[#ffb95f] font-bold">Arcane Core Sync: 100%</span>
+</div>
+</div>
+<div class="flex items-center gap-6">
+<a class="font-body text-[11px] tracking-wide text-[#ccbeff]/40 hover:text-[#ffb95f] transition-colors" href="#">Documentation</a>
+<a class="font-body text-[11px] tracking-wide text-[#ccbeff]/40 hover:text-[#ffb95f] transition-colors" href="#">Support</a>
+<a class="font-body text-[11px] tracking-wide text-[#ccbeff]/40 hover:text-[#ffb95f] transition-colors" href="#">API Status</a>
+</div>
+</footer>
+</body></html>
