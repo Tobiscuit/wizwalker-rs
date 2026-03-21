@@ -256,8 +256,53 @@ impl DynamicWindow {
 
     /// Get a single child window by name, returning `None` if not found.
     pub fn get_child_by_name(&self, target_name: &str) -> Result<Option<DynamicWindow>> {
-        let windows = self.get_windows_with_name(target_name)?;
-        Ok(windows.into_iter().next())
+        for child in self.read_children()? {
+            if let Ok(name) = child.name() {
+                if name == target_name {
+                    return Ok(Some(child));
+                }
+            }
+        }
+        Ok(None)
+    }
+
+    /// Public accessor for reading the list of child windows.
+    /// Python: `window.children()`
+    pub fn children(&self) -> Result<Vec<DynamicWindow>> {
+        self.read_children()
+    }
+
+    /// Read this window's parent pointer.
+    /// Python: offset 136, Primitive.int64
+    pub fn parent(&self) -> Result<Option<DynamicWindow>> {
+        let addr: u64 = self.inner.read_value_from_offset(136)?;
+        if addr == 0 {
+            return Ok(None);
+        }
+        let inner = DynamicMemoryObject::new(self.inner.reader(), addr)?;
+        Ok(Some(DynamicWindow::new(inner)))
+    }
+
+    /// Walk up the parent chain, returning all ancestor windows.
+    /// Python: `get_parents()`
+    pub fn get_parents(&self) -> Result<Vec<DynamicWindow>> {
+        let mut parents = Vec::new();
+        let mut current_addr: u64 = self.inner.read_value_from_offset(136)?;
+
+        while current_addr != 0 {
+            let inner = DynamicMemoryObject::new(self.inner.reader(), current_addr)?;
+            let parent = DynamicWindow::new(inner);
+            current_addr = parent.inner.read_value_from_offset::<u64>(136).unwrap_or(0);
+            parents.push(parent);
+        }
+
+        Ok(parents)
+    }
+
+    /// Whether this checkbox-style window is checked.
+    /// Python offset: 884, Primitive.bool
+    pub fn maybe_checked(&self) -> Result<bool> {
+        self.inner.read_value_from_offset(884)
     }
 
     // ── Spell / Combat Helpers ──────────────────────────────────────

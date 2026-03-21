@@ -271,6 +271,162 @@ impl Client {
         String::from_utf8(string_bytes).ok()
     }
 
+    /// Read a shared_vector (start/end pointer pair) from the client object base.
+    /// Returns a list of u64 addresses. Shared pointers are 16 bytes each.
+    ///
+    /// Python: `read_shared_vector(offset)` on MemoryObject
+    fn read_shared_vector(&self, base_addr: usize, offset: usize) -> Vec<u64> {
+        let reader = match self.process_reader() {
+            Some(r) => r,
+            None => return Vec::new(),
+        };
+
+        let start: u64 = reader.read_typed(base_addr + offset).unwrap_or(0);
+        let end: u64 = reader.read_typed(base_addr + offset + 8).unwrap_or(0);
+
+        if start == 0 || end == 0 || end <= start {
+            return Vec::new();
+        }
+
+        let size = (end - start) as usize;
+        let element_count = size / 16; // 16 bytes per shared pointer
+
+        if element_count > 5000 {
+            return Vec::new(); // Sanity check
+        }
+
+        let data = match reader.read_bytes(start as usize, size) {
+            Ok(d) => d,
+            Err(_) => return Vec::new(),
+        };
+
+        let mut addrs = Vec::with_capacity(element_count);
+        for i in 0..element_count {
+            let off = i * 16;
+            if off + 8 <= data.len() {
+                let addr = u64::from_le_bytes(
+                    data[off..off + 8].try_into().unwrap_or([0; 8]),
+                );
+                if addr != 0 {
+                    addrs.push(addr);
+                }
+            }
+        }
+        addrs
+    }
+
+    /// Get the list of all game entities (WizClientObjects) currently loaded.
+    ///
+    /// Walks up the parent chain from client_object to find the root
+    /// (the entity whose object_template is null), then reads its children
+    /// via shared_vector at offset 392.
+    ///
+    /// # Python equivalent
+    /// ```python
+    /// async def get_base_entity_list(self):
+    ///     root_client = await self.client_object.parent()
+    ///     while not (await _is_root_object(root_client)):
+    ///         root_client = await root_client.parent()
+    ///     return await root_client.children()
+    /// ```
+    ///
+    /// Returns: List of entity base addresses (u64).
+    pub fn get_base_entity_list(&self) -> Vec<u64> {
+        let reader = match self.process_reader() {
+            Some(r) => r,
+            None => return Vec::new(),
+        };
+
+        // Get client_object base from ClientHook export
+        let client_base = match self.hook_handler.read_current_client_base() {
+            Ok(b) => b,
+            Err(_) => return Vec::new(),
+        };
+
+        // Walk up parent chain (offset 208 per CoreObject) to find root
+        // Root is the entity with no object_template (offset 88 == 0)
+        let mut current = client_base;
+        for _ in 0..20 { // Safety limit
+            let template: i64 = reader.read_typed(current + 88).unwrap_or(0);
+            if template == 0 {
+                break; // Found the root
+            }
+            let parent: i64 = reader.read_typed(current + 208).unwrap_or(0);
+            if parent == 0 {
+                break; // No more parents, use current
+            }
+            current = parent as usize;
+        }
+
+        // Read children from root via shared_vector at offset 392
+        self.read_shared_vector(current, 392)
+    }
+
+    /// Get entities matching a specific object name.
+    ///
+    /// Python equivalent: `get_base_entities_with_name(name)`
+    pub fn get_base_entities_with_name(&self, name: &str) -> Vec<u64> {
+        let reader = match self.process_reader() {
+            Some(r) => r,
+            None => return Vec::new(),
+        };
+
+        let mut matching = Vec::new();
+        for entity_addr in self.get_base_entity_list() {
+            // Read object_template pointer at offset 88
+            let template_addr: i64 = reader.read_typed(entity_addr as usize + 88).unwrap_or(0);
+            if template_addr == 0 {
+                continue;
+            }
+
+            // Read object_name from template (offset 80, null-terminated string)
+            let name_base = template_addr as usize + 80;
+            let mut name_bytes = Vec::new();
+            if let Ok(chunk) = reader.read_bytes(name_base, 128) {
+                for &byte in chunk.iter() {
+                    if byte == 0 { break; }
+                    name_bytes.push(byte);
+                }
+            }
+            if let Ok(obj_name) = String::from_utf8(name_bytes) {
+                if obj_name == name {
+                    matching.push(entity_addr);
+                }
+            }
+        }
+        matching
+    }
+
+    /// Whether the client is currently in a loading screen.
+    ///
+    /// Checks for "TransitionWindow" or "PageFlip" in the root window children.
+    ///
+    /// # Python equivalent
+    /// ```python
+    /// async def is_loading(self) -> bool:
+    ///     view = await self.get_world_view_window()
+    ///     try:
+    ///         await view.get_child_by_name("TransitionWindow")
+    ///     except ValueError:
+    ///         await self.root_window.get_child_by_name("PageFlip")
+    /// ```
+    pub fn is_loading(&self) -> bool {
+        if let Some(root) = &self.root_window {
+            // Check for TransitionWindow or PageFlip
+            if let Ok(windows) = root.window.get_windows_with_name("TransitionWindow") {
+                if !windows.is_empty() {
+                    return true;
+                }
+            }
+            if let Ok(windows) = root.window.get_windows_with_name("PageFlip") {
+                if !windows.is_empty() {
+                    return true;
+                }
+            }
+        }
+        false
+    }
+
     // ── Win32 Window Operations ─────────────────────────────────────
 
     /// Get the window title.
@@ -339,6 +495,95 @@ impl Client {
 
         // No reader yet — window exists, assume running.
         true
+    }
+
+    // ── Input Sending ───────────────────────────────────────────────
+
+    /// Send a single key press (down + up) to the game window.
+    ///
+    /// # Python equivalent
+    /// ```python
+    /// user32.SendMessageW(window_handle, 0x100, key.value, 0)  # WM_KEYDOWN
+    /// user32.SendMessageW(window_handle, 0x101, key.value, 0)  # WM_KEYUP
+    /// ```
+    pub fn send_key(&self, key: crate::constants::Keycode) {
+        use windows::Win32::UI::WindowsAndMessaging::SendMessageW;
+        use windows::Win32::Foundation::{WPARAM, LPARAM};
+
+        let wparam = Some(WPARAM(key.value() as usize));
+        let lparam = Some(LPARAM(0));
+
+        unsafe {
+            SendMessageW(self.window_handle, 0x0100, wparam, lparam);
+            SendMessageW(self.window_handle, 0x0101, wparam, lparam);
+        }
+    }
+
+    /// Send a key press held for a duration (blocks the current thread).
+    ///
+    /// Sends repeated WM_KEYDOWN messages every 50ms for the specified
+    /// duration, then sends a single WM_KEYUP.
+    ///
+    /// # Python equivalent
+    /// ```python
+    /// async def timed_send_key(window_handle, key, seconds):
+    ///     keydown_task = asyncio.create_task(_send_keydown_forever(window_handle, key))
+    ///     await asyncio.sleep(seconds)
+    ///     keydown_task.cancel()
+    ///     user32.SendMessageW(window_handle, 0x101, key.value, 0)
+    /// ```
+    pub fn timed_send_key(&self, key: crate::constants::Keycode, seconds: f64) {
+        use windows::Win32::UI::WindowsAndMessaging::SendMessageW;
+        use windows::Win32::Foundation::{WPARAM, LPARAM};
+
+        let wparam = Some(WPARAM(key.value() as usize));
+        let lparam = Some(LPARAM(0));
+
+        let duration = std::time::Duration::from_secs_f64(seconds);
+        let start = std::time::Instant::now();
+
+        // Send WM_KEYDOWN repeatedly every 50ms
+        while start.elapsed() < duration {
+            unsafe {
+                SendMessageW(self.window_handle, 0x0100, wparam, lparam);
+            }
+            std::thread::sleep(std::time::Duration::from_millis(50));
+        }
+
+        // Send WM_KEYUP
+        unsafe {
+            SendMessageW(self.window_handle, 0x0101, wparam, lparam);
+        }
+    }
+
+    /// Send a key with optional modifiers (Shift, Ctrl, Alt).
+    ///
+    /// Presses modifiers down, sends the main key, then releases modifiers.
+    ///
+    /// # Python equivalent: `utils.send_key_with_modifiers`
+    pub fn send_key_with_modifiers(&self, key: crate::constants::Keycode, modifiers: &[crate::constants::Keycode]) {
+        use windows::Win32::UI::WindowsAndMessaging::SendMessageW;
+        use windows::Win32::Foundation::{WPARAM, LPARAM};
+
+        // Press modifiers down
+        for modifier in modifiers {
+            unsafe {
+                SendMessageW(self.window_handle, 0x0100, Some(WPARAM(modifier.value() as usize)), Some(LPARAM(0)));
+            }
+        }
+
+        // Send main key
+        unsafe {
+            SendMessageW(self.window_handle, 0x0100, Some(WPARAM(key.value() as usize)), Some(LPARAM(0)));
+            SendMessageW(self.window_handle, 0x0101, Some(WPARAM(key.value() as usize)), Some(LPARAM(0)));
+        }
+
+        // Release modifiers
+        for modifier in modifiers {
+            unsafe {
+                SendMessageW(self.window_handle, 0x0101, Some(WPARAM(modifier.value() as usize)), Some(LPARAM(0)));
+            }
+        }
     }
 }
 
