@@ -2,6 +2,11 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { Sidebar } from "./components/Sidebar";
 import { StatusBar } from "./components/StatusBar";
 import { Dashboard } from "./pages/Dashboard";
+import { Combat } from "./pages/Combat";
+import { Navigation } from "./pages/Navigation";
+import { Camera } from "./pages/Camera";
+import { Scripting } from "./pages/Scripting";
+import { Settings } from "./pages/Settings";
 
 function App() {
   return (
@@ -47,29 +52,16 @@ function App() {
           {/* Page Content */}
           <Routes>
             <Route path="/" element={<Dashboard />} />
-            <Route path="/combat" element={<Placeholder title="Combat & Strategy" />} />
-            <Route path="/navigation" element={<Placeholder title="Navigation & Teleport" />} />
-            <Route path="/camera" element={<Placeholder title="Camera Controls" />} />
-            <Route path="/scripting" element={<Placeholder title="Bot Scripting" />} />
-            <Route path="/settings" element={<Placeholder title="Settings" />} />
+            <Route path="/combat" element={<Combat />} />
+            <Route path="/navigation" element={<Navigation />} />
+            <Route path="/camera" element={<Camera />} />
+            <Route path="/scripting" element={<Scripting />} />
+            <Route path="/settings" element={<Settings />} />
           </Routes>
         </main>
         <StatusBar />
       </div>
     </BrowserRouter>
-  );
-}
-
-function Placeholder({ title }: { title: string }) {
-  return (
-    <div className="flex-1 flex items-center justify-center">
-      <div className="text-center space-y-4">
-        <h2 className="font-[var(--font-headline)] text-4xl font-bold text-accent-violet">
-          {title}
-        </h2>
-        <p className="text-text-muted">Coming soon — select Dashboard to see the prototype</p>
-      </div>
-    </div>
   );
 }
 
