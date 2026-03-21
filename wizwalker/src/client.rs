@@ -14,6 +14,7 @@ use crate::memory::objects::game_stats::DynamicGameStats;
 use crate::memory::objects::window::CurrentRootWindow;
 use crate::memory::process_reader::ProcessMemoryReader;
 use crate::memory::reader::MemoryReader;
+use crate::memory::reader::MemoryReaderExt;
 use crate::mouse_handler::MouseHandler;
 
 /// Represents a single connected Wizard101 game instance.
@@ -237,12 +238,37 @@ impl Client {
 
     /// Current zone name, if available.
     ///
-    /// Reads from the client object's client zone memory.
-    /// Returns `None` if the zone can't be read.
+    /// Reads via: ClientHook export → client_object base → offset 304
+    /// → client_zone pointer → offset 88 → zone name string.
+    ///
+    /// # Python equivalent
+    /// ```python
+    /// async def zone_name(self) -> Optional[str]:
+    ///     client_zone = await self.client_object.client_zone()
+    ///     if client_zone is not None:
+    ///         return await client_zone.zone_name()
+    /// ```
     pub fn zone_name(&self) -> Option<String> {
-        // TODO: Read from client_object -> client_zone -> zone_name
-        // Requires ClientObject to be wired up (needs hooks for base address).
-        None
+        // Get the client object base address from the ClientHook export
+        let client_base = self.hook_handler.read_current_client_base().ok()?;
+        let reader = self.process_reader()?;
+
+        // Read client_zone pointer at offset 304 (per Python client_object.py)
+        let client_zone_addr: u64 = reader.read_typed(client_base + 304).ok()?;
+        if client_zone_addr == 0 {
+            return None;
+        }
+
+        // Read zone name string at offset 88 (null-terminated UTF-8)
+        // Per Python client_zone.py: `read_string_from_offset(88)`
+        let zone_base = client_zone_addr as usize + 88;
+        let mut string_bytes = Vec::new();
+        let chunk = reader.read_bytes(zone_base, 128).ok()?;
+        for &byte in chunk.iter() {
+            if byte == 0 { break; }
+            string_bytes.push(byte);
+        }
+        String::from_utf8(string_bytes).ok()
     }
 
     // ── Win32 Window Operations ─────────────────────────────────────

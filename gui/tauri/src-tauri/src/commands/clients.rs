@@ -17,7 +17,7 @@ fn build_info(label: &str, client: &wizwalker::client::Client) -> ClientInfo {
         label: label.to_string(),
         pid: client.process_id,
         title: client.title(),
-        hooked: false, // TODO: check hook_handler state
+        hooked: client.hook_handler.has_any_hooks(),
         zone: client.zone_name().unwrap_or_else(|| "Unknown".into()),
         is_foreground: client.is_foreground(),
         is_running: client.is_running(),

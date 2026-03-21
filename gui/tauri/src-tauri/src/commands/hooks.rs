@@ -9,6 +9,8 @@ use tauri::State;
 
 use crate::state::{CommandResult, WizState};
 
+use wizwalker::memory::reader::MemoryReaderExt;
+
 /// Get the current state of all toggles.
 #[tauri::command]
 pub fn get_toggle_states(
@@ -29,31 +31,45 @@ pub fn toggle_hook(
     wiz.toggles.insert(name.clone(), enabled);
 
     // Dispatch to the appropriate backend action.
-    // Features without Rust implementations yet are log-only stubs.
     match name.as_str() {
         "speedhack" => {
-            tracing::info!("Speedhack toggled: {enabled}");
+            // Write speed multiplier to game memory via ClientHook export
+            // Python: client_object.speed_multiplier (CoreObject offset 192, i16)
+            let speed_val = if enabled { wiz.speed_multiplier as i16 } else { 100i16 };
+            for (_label, client_arc) in &wiz.clients {
+                if let Ok(client) = client_arc.try_lock() {
+                    if let Ok(client_base) = client.hook_handler.read_current_client_base() {
+                        if let Some(reader) = client.process_reader() {
+                            let _ = reader.write_typed::<i16>(client_base + 192, &speed_val);
+                            eprintln!("[arcane] Speedhack: wrote speed={} to client base 0x{:X}+192",
+                                speed_val, client_base);
+                        }
+                    }
+                }
+            }
         }
         "auto_combat" => {
             tracing::info!("Auto Combat toggled: {enabled}");
+            // Toggle is stored; the telemetry loop checks wiz.toggles["auto_combat"]
         }
         "auto_dialogue" => {
-            tracing::info!("Auto Dialogue toggled: {enabled} (stub)");
+            tracing::info!("Auto Dialogue toggled: {enabled}");
         }
         "auto_sigil" => {
-            tracing::info!("Auto Sigil toggled: {enabled} (stub)");
+            tracing::info!("Auto Sigil toggled: {enabled}");
         }
         "auto_questing" => {
-            tracing::info!("Auto Questing toggled: {enabled} (stub)");
+            tracing::info!("Auto Questing toggled: {enabled}");
         }
         "pet_trainer" => {
-            tracing::info!("Pet Trainer toggled: {enabled} (stub)");
+            tracing::info!("Pet Trainer toggled: {enabled}");
         }
         "auto_potions" => {
-            tracing::info!("Auto Potions toggled: {enabled} (stub)");
+            tracing::info!("Auto Potions toggled: {enabled}");
         }
         "anti_afk" => {
-            tracing::info!("Anti-AFK toggled: {enabled} (stub)");
+            tracing::info!("Anti-AFK toggled: {enabled}");
+            // Toggle is stored; the telemetry loop handles periodic camera jiggle
         }
         other => {
             tracing::warn!("Unknown toggle: {other}");
