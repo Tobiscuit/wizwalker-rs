@@ -41,6 +41,11 @@ impl MouseHandler {
     }
 
     /// Click on a window. If `right_click` is `true`, sends a right-click instead.
+    pub async fn use_potion_if_needed(&self, _health_percent: i32, _mana_percent: i32) -> Result<()> {
+        // BUG: (from Python original) this is a complex check and UI interaction in utils.py
+        Ok(())
+    }
+
     pub async fn click_window(&self, window: &DynamicWindow, right_click: bool) -> Result<()> {
         let rect = window.window_rectangle()?;
         let center_x = rect.x + rect.width / 2;

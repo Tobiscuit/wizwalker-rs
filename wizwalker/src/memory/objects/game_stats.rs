@@ -967,6 +967,10 @@ pub trait GameStats: MemoryObject {
         self.write_value_to_offset(1108, &photo_filters)
     }
 
+    fn deck(&self) -> Result<super::play_deck::DynamicPlayDeck> {
+        let addr = self.read_value_from_offset(232)?;
+        super::play_deck::DynamicPlayDeck::new(self.reader(), addr)
+    }
 }
 
 pub struct CurrentGameStats {

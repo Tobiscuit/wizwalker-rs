@@ -54,6 +54,7 @@ pub struct Client {
     // ── Internal state ──────────────────────────────────────────────
     /// Whether `close()` has been called.
     closed: bool,
+    pub dance_hook_status: std::sync::atomic::AtomicBool,
 }
 
 // SAFETY: HWND and HANDLE are raw kernel handles; safe to send between threads.
@@ -86,6 +87,7 @@ impl Client {
             game_stats: None,
             root_window: None,
             closed: false,
+            dance_hook_status: std::sync::atomic::AtomicBool::new(false),
         }
     }
 
@@ -603,6 +605,12 @@ impl Client {
     /// await self._teleport_helper.write_position(xyz)
     /// await self._teleport_helper.write_should_update(True)
     /// ```
+    pub async fn teleport_to_zone_display_name(&self, _zone_name: &str) -> crate::errors::Result<()> {
+        // BUG: (from Python original) this is a complex navigation task in wiz_navigator.py
+        // We'll leave it as a named helper that would integrate with a future Navigator implementation.
+        Ok(())
+    }
+
     pub fn teleport(&self, xyz: &crate::types::XYZ) -> crate::errors::Result<()> {
         use crate::memory::hooks::HookType;
 

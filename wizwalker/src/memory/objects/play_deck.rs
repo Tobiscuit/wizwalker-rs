@@ -1,25 +1,7 @@
-use crate::memory::MemoryObject;
+use crate::errors::Result;
+use crate::memory::memory_object::{DynamicMemoryObject, MemoryObject};
 
 pub trait PlayDeck: MemoryObject {
-    // fn deck_to_save(&self) -> Vec<DynamicPlaySpellData> {
-    //     let mut spell_data = Vec::new();
-    //     if let Ok(addrs) = self.read_shared_vector(72) {
-    //         for addr in addrs {
-    //             spell_data.push(DynamicPlaySpellData::new(addr));
-    //         }
-    //     }
-    //     spell_data
-    // }
-
-    // fn graveyard_to_save(&self) -> Vec<DynamicPlaySpellData> {
-    //     let mut spell_data = Vec::new();
-    //     if let Ok(addrs) = self.read_shared_vector(96) {
-    //         for addr in addrs {
-    //             spell_data.push(DynamicPlaySpellData::new(addr));
-    //         }
-    //     }
-    //     spell_data
-    // }
 }
 
 pub trait PlaySpellData: MemoryObject {
@@ -31,3 +13,26 @@ pub trait PlaySpellData: MemoryObject {
         self.read_value_from_offset(76).unwrap_or(0)
     }
 }
+
+pub struct DynamicPlayDeck {
+    pub inner: DynamicMemoryObject,
+}
+
+impl DynamicPlayDeck {
+    pub fn new(reader: std::sync::Arc<dyn crate::memory::reader::MemoryReader>, base_address: u64) -> Result<Self> {
+        Ok(Self {
+            inner: DynamicMemoryObject::new(reader, base_address)?,
+        })
+    }
+}
+
+impl MemoryObject for DynamicPlayDeck {
+    fn reader(&self) -> std::sync::Arc<dyn crate::memory::reader::MemoryReader> {
+        self.inner.reader()
+    }
+    fn read_base_address(&self) -> Result<u64> {
+        self.inner.read_base_address()
+    }
+}
+
+impl PlayDeck for DynamicPlayDeck {}
