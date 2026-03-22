@@ -212,6 +212,13 @@ pub enum Expression {
     StackLoc(usize),
     ReadVar(Box<Expression>),
     Eval(EvalKind, Vec<Box<Expression>>),
+    ExprKind(ExprKind),
+    TeleportKind(TeleportKind),
+    WaitforKind(WaitforKind),
+    CursorKind(CursorKind),
+    ClickKind(ClickKind),
+    LogKind(LogKind),
+    Boolean(bool),
 }
 
 #[derive(Debug, Clone)]
