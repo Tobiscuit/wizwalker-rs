@@ -4,13 +4,20 @@
 #![allow(dead_code, non_camel_case_types)]
 
 use std::fmt;
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 use thiserror::Error;
+use wizwalker::errors::WizWalkerError;
 
 #[derive(Error, Debug)]
 pub enum TokenizerError {
     #[error("{0}")]
     Error(String),
+}
+
+impl From<TokenizerError> for WizWalkerError {
+    fn from(err: TokenizerError) -> Self {
+        WizWalkerError::Other(err.to_string())
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -241,31 +248,19 @@ impl fmt::Display for Token {
 
 /// Python: `render_tokens(toks)` — tokenizer.py:165
 pub fn render_tokens(toks: &[Token]) -> String {
-    let mut lines_strs: HashMap<usize, String> = HashMap::new();
-    let mut max_line = 0;
+    let mut lines_strs: BTreeMap<usize, String> = BTreeMap::new();
     for tok in toks {
-        let line = tok.line_info.line;
-        if line > max_line { max_line = line; }
-        let current_str = lines_strs.entry(line).or_insert_with(String::new);
-        let spaces_needed = if tok.line_info.column > 1 {
-            tok.line_info.column - 1 - current_str.len()
-        } else {
-            0
-        };
-        for _ in 0..spaces_needed {
-            current_str.push(' ');
+        let line_entry = lines_strs.entry(tok.line_info.line).or_insert_with(String::new);
+        let current_len = line_entry.chars().count();
+        if tok.line_info.column > 1 && tok.line_info.column - 1 > current_len {
+            let spaces = tok.line_info.column - 1 - current_len;
+            for _ in 0..spaces {
+                line_entry.push(' ');
+            }
         }
-        current_str.push_str(&tok.literal);
+        line_entry.push_str(&tok.literal);
     }
-    
-    let mut sorted_lines: Vec<usize> = lines_strs.keys().cloned().collect();
-    sorted_lines.sort();
-    
-    let mut result = Vec::new();
-    for line in sorted_lines {
-        result.push(lines_strs[&line].clone());
-    }
-    result.join("\n")
+    lines_strs.values().cloned().collect::<Vec<String>>().join("\n")
 }
 
 /// Python: `normalize_ident(dirty)` — tokenizer.py:177
@@ -301,7 +296,8 @@ impl Tokenizer {
                 self.multiline_buffer.push(c);
                 if c == '`' {
                     self.multiline_start_line_info.last_column = i + 1;
-                    self.multiline_start_line_info.last_line = line_num + 1;
+                    // Python: self._multiline_start_line_info.last_line = line_num + 1
+                    self.multiline_start_line_info.last_line = line_num + 1; // BUG: (from Python original)
                     let value = if self.multiline_buffer.len() >= 2 {
                         self.multiline_buffer[1..self.multiline_buffer.len()-1].to_string()
                     } else {
@@ -400,29 +396,33 @@ impl Tokenizer {
                     }
                     '"' | '\'' => {
                         let quote_kind = c;
-                        let mut str_lit = String::from(c);
+                        let mut str_lit = String::new();
+                        str_lit.push(c);
                         let mut j = i + 1;
                         while j < chars.len() && chars[j] != quote_kind {
                             str_lit.push(chars[j]);
                             j += 1;
                         }
                         if j >= chars.len() {
-                            return Err(TokenizerError::Error(format!("Unclosed string encountered\n{}\n{}^\nLine: {} | Column: {}", l, " ".repeat(i), line_num, i+1)));
+                            return Err(TokenizerError::Error(format!("Unclosed string encountered\n{}\n{}^\nLine: {} | Column: {}", l, " ".repeat(i), line_num, i + 1)));
                         }
                         str_lit.push(chars[j]);
                         j += 1;
-                        let val = str_lit[1..str_lit.len()-1].to_string();
-                        result.push(self.make_token(TokenKind::string, &str_lit, line_num, i, &filename, TokenValue::String(val)));
+                        let val = &str_lit[1..str_lit.len()-1];
+                        result.push(self.make_token(TokenKind::string, &str_lit, line_num, i, &filename, TokenValue::String(val.to_string())));
                         i = j;
                     }
                     '`' => {
-                        self.multiline_buffer = String::from(c);
+                        self.multiline_buffer = String::new();
+                        self.multiline_buffer.push(c);
                         self.in_multiline_string = true;
                         self.multiline_start_line_info = LineInfo::new(line_num, i + 1, i + 1, Some(line_num), filename.clone());
                         i += 1;
                     }
                     '#' => break,
-                    _ if c.is_whitespace() => i += 1,
+                    _ if c.is_whitespace() => {
+                        i += 1;
+                    }
                     _ => {
                         let mut full = String::new();
                         let mut j = i;
@@ -437,28 +437,29 @@ impl Tokenizer {
                                     if let Ok(num) = full[..full.len()-1].parse::<f64>() {
                                         result.push(self.make_token(TokenKind::percent, &full, line_num, i, &filename, TokenValue::Percent(num / 100.0)));
                                     } else {
-                                        return Err(TokenizerError::Error(format!("Unable to convert to percent\n{}\n{}^\nLine: {} | Column: {}", l, " ".repeat(i), line_num, i+1)));
+                                        return Err(TokenizerError::Error(format!("Unable to convert to percent\n{}\n{}^\nLine: {} | Column: {}", l, " ".repeat(i), line_num, i + 1)));
                                     }
                                 } else {
                                     if let Ok(num) = full.parse::<f64>() {
                                         result.push(self.make_token(TokenKind::number, &full, line_num, i, &filename, TokenValue::Number(num)));
                                     } else {
-                                        return Err(TokenizerError::Error(format!("Unable to convert to number\n{}\n{}^\nLine: {} | Column: {}", l, " ".repeat(i), line_num, i+1)));
+                                        return Err(TokenizerError::Error(format!("Unable to convert to number\n{}\n{}^\nLine: {} | Column: {}", l, " ".repeat(i), line_num, i + 1)));
                                     }
                                 }
                             } else if full.contains('/') {
                                 if full.ends_with('/') {
-                                    return Err(TokenizerError::Error(format!("Invalid path\n{}\n{}^\nLine: {} | Column: {}", l, " ".repeat(i), line_num, i+1)));
+                                    return Err(TokenizerError::Error(format!("Invalid path\n{}\n{}^\nLine: {} | Column: {}", l, " ".repeat(i), line_num, i + 1)));
                                 }
                                 let parts: Vec<String> = full.split('/').map(|s| s.to_string()).collect();
                                 result.push(self.make_token(TokenKind::path, &full, line_num, i, &filename, TokenValue::Path(parts)));
-                            } else if full.to_lowercase().starts_with('p') && full[1..].chars().all(|x| x.is_numeric()) {
+                            } else if full.to_lowercase().starts_with('p') && full[1..].chars().all(|x| x.is_numeric()) && full.len() > 1 {
                                 if let Ok(num) = full[1..].parse::<i32>() {
                                     result.push(self.make_token(TokenKind::player_num, &full, line_num, i, &filename, TokenValue::Int(num)));
                                 }
                             } else {
                                 let norm = normalize_ident(&full);
                                 let kind = match norm.as_str() {
+                                    // keywords
                                     "block" => TokenKind::keyword_block,
                                     "call" => TokenKind::keyword_call,
                                     "loop" => TokenKind::keyword_loop,
@@ -493,8 +494,8 @@ impl Tokenizer {
                                     "on" => TokenKind::logical_on,
                                     "off" => TokenKind::logical_off,
                                     "con" | "set" | "setvar" | "var" => TokenKind::keyword_con,
-                                    "true" => TokenKind::boolean_true,
-                                    "false" => TokenKind::boolean_false,
+                                    "True" => TokenKind::boolean_true, // BUG: (from Python original) will never match because of normalize_ident
+                                    "False" => TokenKind::boolean_false, // BUG: (from Python original) will never match because of normalize_ident
                                     "$" => TokenKind::keyword_constant_reference,
                                     "rerun" | "restart" | "restartbot" => TokenKind::command_restart_bot,
                                     "startcounter" | "counter" | "createcounter" => TokenKind::keyword_counter,
@@ -502,6 +503,7 @@ impl Tokenizer {
                                     "addone" => TokenKind::keyword_addone_counter,
                                     "minusone" => TokenKind::keyword_minusone_counter,
 
+                                    // commands
                                     "kill" | "killbot" | "stop" | "stopbot" | "end" | "exit" => TokenKind::command_kill,
                                     "sleep" | "wait" | "delay" => TokenKind::command_sleep,
                                     "log" | "debug" | "print" => TokenKind::command_log,
@@ -537,6 +539,7 @@ impl Tokenizer {
                                     "cursor" | "movecursor" | "mousexy" | "movemouse" => TokenKind::command_move_cursor,
                                     "cursorwindow" | "mousewindow" => TokenKind::command_move_cursor_window,
 
+                                    // expression commands
                                     "contains" => TokenKind::contains,
                                     "windowvisible" => TokenKind::command_expr_window_visible,
                                     "inzone" => TokenKind::command_expr_in_zone,
@@ -606,7 +609,7 @@ impl Tokenizer {
         Token {
             kind,
             literal: literal.to_string(),
-            line_info: LineInfo::new(line_num, i + 1, i + literal.len() + 1, Some(line_num), filename.clone()),
+            line_info: LineInfo::new(line_num, i + 1, i + literal.chars().count() + 1, Some(line_num), filename.clone()),
             value,
         }
     }
@@ -628,5 +631,49 @@ impl Tokenizer {
             return Err(TokenizerError::Error(format!("Unclosed multiline string: {} {}", self.multiline_buffer, self.multiline_start_line_info)));
         }
         Ok(result)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_normalize_ident() {
+        assert_eq!(normalize_ident("Block"), "block");
+        assert_eq!(normalize_ident("Wait_For_Dialog"), "waitfordialog");
+    }
+
+    #[test]
+    fn test_tokenize_simple() {
+        let mut tokenizer = Tokenizer::new();
+        let toks = tokenizer.tokenize_line("log \"hello\"", 1, None).unwrap();
+        // log, string, END_LINE
+        assert_eq!(toks.len(), 3);
+        assert_eq!(toks[0].kind, TokenKind::command_log);
+        assert_eq!(toks[1].kind, TokenKind::string);
+        assert_eq!(toks[1].literal, "\"hello\"");
+        if let TokenValue::String(ref s) = toks[1].value {
+            assert_eq!(s, "hello");
+        } else {
+            panic!("Expected string value");
+        }
+    }
+
+    #[test]
+    fn test_tokenize_multiline() {
+        let mut tokenizer = Tokenizer::new();
+        let code = "log `first line\nsecond line`";
+        let toks = tokenizer.tokenize(code, None).unwrap();
+        // log, string, END_LINE (from second line)
+        
+        assert_eq!(toks[0].kind, TokenKind::command_log);
+        assert_eq!(toks[1].kind, TokenKind::string);
+        if let TokenValue::String(ref s) = toks[1].value {
+            assert!(s.contains("first line"));
+            assert!(s.contains("second line"));
+        } else {
+            panic!("Expected string value");
+        }
     }
 }
