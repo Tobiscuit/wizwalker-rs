@@ -18,6 +18,7 @@ use state::WizState;
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_store::Builder::default().build())
         // Register shared state — sync Mutex per Tauri v2 state management docs
         .manage(Mutex::new(WizState::new()))
         // Register all IPC command handlers (17 total)

@@ -156,6 +156,79 @@ pub fn spawn_telemetry_loop(app: AppHandle) {
                 tracing::warn!("Failed to emit telemetry: {e}");
             }
 
+            // ── Phase 4: Auto-automation dispatch ────────────────────────
+            // Matches Python Deimos.py main loop behavior:
+            //   - speed_switching() re-applies speed every ~300ms
+            //   - dialogue_loop() checks advance_dialog_path every 100ms
+            //   - combat_loop() enters SprintyCombat when in_battle()
+            //   - anti_afk sends periodic movement
+            {
+                let wiz = state.lock().unwrap();
+                let speedhack = wiz.toggles.get("speedhack").copied().unwrap_or(false);
+                let auto_dialogue = wiz.toggles.get("auto_dialogue").copied().unwrap_or(false);
+                let auto_combat = wiz.toggles.get("auto_combat").copied().unwrap_or(false);
+                let anti_afk = wiz.toggles.get("anti_afk").copied().unwrap_or(false);
+
+                // Speed re-application: every ~300ms (every 3rd tick)
+                // Python Deimos.py:878-888 — speed_switching() continuously
+                // re-writes speed because the game resets it on zone/realm change
+                let should_reapply_speed = speedhack && telem_counter % 3 == 0;
+
+                // Automation: every ~500ms (every 5th tick)
+                let should_run_auto = telem_counter % 5 == 0;
+
+                for (_label, client_arc) in &wiz.clients {
+                    let client = client_arc.blocking_lock();
+                    if !client.hook_handler.has_any_hooks() || !client.is_running() {
+                        continue;
+                    }
+
+                    // ── Speed re-application (Deimos.py:878-888) ──────
+                    // Game resets speed_multiplier to 0 on zone change.
+                    // We re-read and re-write if it differs from target.
+                    if should_reapply_speed {
+                        let target_speed = ((wiz.speed_multiplier - 1.0) * 100.0) as i16;
+                        if let Ok(client_base) = client.hook_handler.read_current_client_base() {
+                            if let Some(reader) = client.process_reader() {
+                                let client_obj_ptr: u64 = reader.read_typed(client_base + 0x21318).unwrap_or(0);
+                                if client_obj_ptr != 0 {
+                                    let current: i16 = reader.read_typed(client_obj_ptr as usize + 192).unwrap_or(0);
+                                    if current != target_speed {
+                                        let _ = reader.write_typed::<i16>(client_obj_ptr as usize + 192, &target_speed);
+                                        eprintln!("[arcane] Speed re-apply: {}→{} for {}", current, target_speed, _label);
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    if !should_run_auto {
+                        continue;
+                    }
+
+                    // ── Auto Dialogue (Deimos.py:928-942) ─────────────
+                    // Python checks advance_dialog_path visibility, then:
+                    //   - If decline_quest_path visible & side_quests off → ESC
+                    //   - Otherwise → SPACEBAR
+                    if auto_dialogue {
+                        crate::automation::dialogue::try_advance_dialogue(&client);
+                    }
+
+                    // ── Auto Combat (Deimos.py:909-926) ───────────────
+                    // Full strategy needs SprintyCombat + DeimosLang (Jules).
+                    // Basic pass-through: press Spacebar when in combat.
+                    if auto_combat && client.in_battle() {
+                        client.send_key(wizwalker::constants::Keycode::Spacebar);
+                    }
+
+                    // ── Anti-AFK (Deimos.py:118, camera jiggle) ───────
+                    // Every ~30 seconds (telem_counter 300 = 30s at 100ms tick)
+                    if anti_afk && telem_counter % 300 == 0 {
+                        crate::automation::anti_afk::send_anti_afk(&client);
+                    }
+                }
+            }
+
             telem_counter = telem_counter.wrapping_add(1);
             std::thread::sleep(std::time::Duration::from_millis(100));
         }

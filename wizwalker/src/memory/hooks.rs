@@ -30,6 +30,7 @@ pub enum HookType {
     RenderContext,
     MovementTeleport,
     MouselessCursor,
+    DanceGameMoves,
 }
 
 impl std::fmt::Display for HookType {
@@ -43,6 +44,7 @@ impl std::fmt::Display for HookType {
             HookType::RenderContext => write!(f, "Render context"),
             HookType::MovementTeleport => write!(f, "Movement teleport"),
             HookType::MouselessCursor => write!(f, "Mouseless cursor"),
+            HookType::DanceGameMoves => write!(f, "Dance game moves"),
         }
     }
 }
@@ -904,3 +906,53 @@ impl MouselessCursorHookInstance {
         Ok(())
     }
 }
+
+// ── DanceGameMovesHook ─────────────────────────────────────────────────
+/// Captures the current dance game move sequence for pet training.
+///
+/// Python class: `DanceGameMovesHook(SimpleHook)` (from deimos/dance_game_hook.py)
+/// Pattern: `\x48\x8B\xF8\x48\x39\x70\x10`
+/// Export: `dance_game_moves` (8 bytes — pointer to move data)
+///
+/// Shellcode logic:
+///   mov rdi, rax              ; original: 48 8B F8
+///   mov rax, [rax]            ; deref to get dance moves string ptr
+///   mov [export], rax         ; store to export
+///   mov rax, rdi              ; restore rax
+///   cmp [rax+10], rsi         ; original: 48 39 70 10
+pub struct DanceGameMovesHook;
+
+impl SimpleHook for DanceGameMovesHook {
+    fn hook_type(&self) -> HookType { HookType::DanceGameMoves }
+
+    fn pattern(&self) -> &[u8] {
+        &[0x48, 0x8B, 0xF8, 0x48, 0x39, 0x70, 0x10]
+    }
+
+    fn instruction_length(&self) -> usize { 7 }
+    fn noops(&self) -> usize { 2 }
+
+    fn exports(&self) -> Vec<(&str, usize)> {
+        vec![("dance_game_moves", 8)]
+    }
+
+    fn generate_bytecode(&self, packed_exports: &[(&str, [u8; 8])]) -> Vec<u8> {
+        let export_addr = packed_exports[0].1;
+
+        // Python bytecode_generator (dance_game_hook.py:19-26):
+        // mov rdi, rax                ; "\x48\x8B\xF8"
+        // mov rax, [rax]              ; "\x48\x8B\x00"
+        // mov qword ptr [export], rax ; "\x48\xA3" + packed_exports[0][1]
+        // mov rax, rdi                ; "\x48\x8B\xC7"
+        // cmp [rax+10], rsi           ; "\x48\x39\x70\x10"
+        let mut bc = Vec::new();
+        bc.extend_from_slice(&[0x48, 0x8B, 0xF8]);        // mov rdi, rax
+        bc.extend_from_slice(&[0x48, 0x8B, 0x00]);        // mov rax, [rax]
+        bc.extend_from_slice(&[0x48, 0xA3]);               // mov [export], rax
+        bc.extend_from_slice(&export_addr);
+        bc.extend_from_slice(&[0x48, 0x8B, 0xC7]);        // mov rax, rdi
+        bc.extend_from_slice(&[0x48, 0x39, 0x70, 0x10]);  // cmp [rax+10], rsi
+        bc
+    }
+}
+

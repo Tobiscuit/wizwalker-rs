@@ -360,4 +360,51 @@ impl MemoryReader for ProcessMemoryReader {
     fn process_handle(&self) -> isize {
         self.process_handle.0 as isize
     }
+
+    fn start_thread(&self, address: usize) -> Result<()> {
+        use std::ffi::c_void;
+
+        // Raw FFI — CreateRemoteThread from kernel32.dll
+        #[link(name = "kernel32")]
+        unsafe extern "system" {
+            fn CreateRemoteThread(
+                hProcess: *mut c_void,
+                lpThreadAttributes: *const c_void,
+                dwStackSize: usize,
+                lpStartAddress: *const c_void,
+                lpParameter: *const c_void,
+                dwCreationFlags: u32,
+                lpThreadId: *mut u32,
+            ) -> *mut c_void;
+
+            fn WaitForSingleObject(hHandle: *mut c_void, dwMilliseconds: u32) -> u32;
+            fn CloseHandle(hObject: *mut c_void) -> i32;
+        }
+
+        let thread_handle = unsafe {
+            CreateRemoteThread(
+                self.process_handle.0 as *mut c_void,
+                std::ptr::null(),       // default security
+                0,                       // default stack size
+                address as *const c_void, // start address (our shellcode)
+                std::ptr::null(),        // no parameter
+                0,                       // run immediately
+                std::ptr::null_mut(),    // no thread id
+            )
+        };
+
+        if thread_handle.is_null() {
+            return Err(WizWalkerError::Other(format!(
+                "CreateRemoteThread failed at {:#X}", address
+            )));
+        }
+
+        // Wait for the thread to finish (5 second timeout)
+        unsafe {
+            WaitForSingleObject(thread_handle, 5000);
+            CloseHandle(thread_handle);
+        }
+
+        Ok(())
+    }
 }

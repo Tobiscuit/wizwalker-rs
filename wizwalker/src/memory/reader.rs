@@ -38,6 +38,11 @@ pub trait MemoryReader: Send + Sync {
 
     /// Get the process handle as a raw `isize` (for passing to Windows API calls).
     fn process_handle(&self) -> isize;
+
+    /// Start a thread in the target process at the given address and wait for it to finish.
+    ///
+    /// Python: `await self.hook_handler.start_thread(shell_ptr)` — uses CreateRemoteThread
+    fn start_thread(&self, address: usize) -> Result<()>;
 }
 
 /// Extension trait providing typed read/write helpers.
@@ -110,6 +115,10 @@ impl MemoryReader for std::sync::Arc<dyn MemoryReader> {
 
     fn process_handle(&self) -> isize {
         (**self).process_handle()
+    }
+
+    fn start_thread(&self, address: usize) -> Result<()> {
+        (**self).start_thread(address)
     }
 }
 

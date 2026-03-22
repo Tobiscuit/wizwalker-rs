@@ -130,6 +130,13 @@ pub fn xyz_sync(
                     let _ = reader.write_typed(addr + 8, &z);
                     let _ = reader.write_typed(addr + 12, &1u8);
                     synced += 1;
+
+                    // Python Deimos.py:418-420 — send A then D key to fix orientation
+                    // after teleport, prevents clients from facing the wrong way
+                    client.send_key(wizwalker::constants::Keycode::A);
+                    std::thread::sleep(std::time::Duration::from_millis(100));
+                    client.send_key(wizwalker::constants::Keycode::D);
+                    std::thread::sleep(std::time::Duration::from_millis(100));
                 }
             }
         }

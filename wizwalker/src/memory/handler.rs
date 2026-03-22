@@ -8,6 +8,7 @@ use crate::memory::hooks::{
     RootWindowHook, RenderContextHook,
     MovementTeleportHook, MovementTeleportHookInstance,
     MouselessCursorMoveHook, MouselessCursorHookInstance,
+    DanceGameMovesHook,
 };
 use crate::memory::process_reader::ProcessMemoryReader;
 use crate::memory::reader::MemoryReader;
@@ -449,6 +450,51 @@ impl HookHandler {
         reader.write_bytes(*addr, &packed)
     }
 
+    // ── Dance Game Moves Hook ──────────────────────────────────────
+
+    pub fn activate_dance_game_moves_hook(&mut self) -> Result<()> {
+        self.activate_simple_hook(&DanceGameMovesHook)
+    }
+
+    pub fn deactivate_dance_game_moves_hook(&mut self) -> Result<()> {
+        self.deactivate_simple_hook(HookType::DanceGameMoves)
+    }
+
+    /// Read the current dance game moves from the hook export.
+    ///
+    /// Returns a string of key characters: W, D, S, A
+    /// (translated from the game's internal 'a', 'b', 'c', 'd').
+    ///
+    /// Python equivalent (dance_game_hook.py:91-101):
+    /// ```python
+    /// moves = await self.read_bytes(addr, 8)
+    /// return moves.partition(b"\0")[0].decode().translate(_dance_moves_transtable)
+    /// ```
+    pub fn read_current_dance_game_moves(&self) -> Result<String> {
+        let addr = self.export_addrs.get("dance_game_moves")
+            .ok_or_else(|| WizWalkerError::HookNotActive("Dance game moves".into()))?;
+
+        let reader = self.reader.as_ref()
+            .ok_or_else(|| WizWalkerError::Other("Reader not attached".into()))?;
+
+        let bytes = reader.read_bytes(*addr, 8)?;
+
+        // Find the first NUL byte and take only up to that point.
+        let end = bytes.iter().position(|&b| b == 0).unwrap_or(bytes.len());
+        let raw = &bytes[..end];
+
+        // Translate: a→W, b→D, c→S, d→A
+        let moves: String = raw.iter().map(|&b| match b {
+            b'a' => 'W',
+            b'b' => 'D',
+            b'c' => 'S',
+            b'd' => 'A',
+            other => other as char,
+        }).collect();
+
+        Ok(moves)
+    }
+
     // ── Activate all hooks ─────────────────────────────────────────
 
     /// Activate all hooks except mouseless cursor.
@@ -463,6 +509,7 @@ impl HookHandler {
         self.activate_root_window_hook()?;
         self.activate_render_context_hook()?;
         self.activate_movement_teleport_hook()?;
+        // DanceGameMovesHook is NOT activated by default — only when pet training
         Ok(())
     }
 

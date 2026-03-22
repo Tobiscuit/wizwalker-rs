@@ -60,6 +60,103 @@ impl DynamicCameraController {
         let inner = DynamicMemoryObject::new(self.inner.reader(), addr)?;
         Ok(Some(DynamicGamebryoCamera::new(inner)))
     }
+
+    /// Update the gamebryo camera matrix from pitch/yaw/roll orientation.
+    ///
+    /// Python equivalent:
+    /// ```python
+    /// async def update_orientation(self, orientation=None):
+    ///     gcam = await self.gamebryo_camera()
+    ///     view = await gcam.cam_view()
+    ///     mat = await gcam.base_matrix()
+    ///     if orientation is None:
+    ///         orientation = await self.orientation()
+    ///     else:
+    ///         await self.write_orientation(orientation)
+    ///     mat = utils.make_ypr_matrix(mat, orientation)
+    ///     await view.write_view_matrix(mat)
+    /// ```
+    pub fn update_orientation(&self, orientation: Option<Orient>) -> Result<()> {
+        let gcam = self.gamebryo_camera()?.ok_or_else(|| {
+            crate::errors::WizWalkerError::Other("Gamebryo camera not found".into())
+        })?;
+        let view = gcam.cam_view()?.ok_or_else(|| {
+            crate::errors::WizWalkerError::Other("Cam view not found".into())
+        })?;
+        let mat = gcam.base_matrix()?;
+        let orient = match orientation {
+            Some(o) => {
+                self.write_orientation(&o)?;
+                o
+            }
+            None => self.orientation()?,
+        };
+        let result = make_ypr_matrix(&mat, &orient);
+        view.write_view_matrix(&result)?;
+        Ok(())
+    }
+}
+
+// ── 3x3 Matrix Math (ported from Python wizwalker/utils.py) ─────────
+
+/// Multiply two 3x3 matrices stored as flat [f32; 9] arrays.
+fn multiply3x3matrices(a: &[f32], b: &[f32]) -> Vec<f32> {
+    let mut result = vec![0.0f32; 9];
+    for i in 0..3 {
+        for j in 0..3 {
+            for k in 0..3 {
+                result[i * 3 + j] += a[i * 3 + k] * b[k * 3 + j];
+            }
+        }
+    }
+    result
+}
+
+/// Create a 3x3 pitch rotation matrix.
+fn pitch_matrix(pitch: f32) -> Vec<f32> {
+    let mut result = vec![0.0f32; 9];
+    let s = pitch.sin();
+    let c = pitch.cos();
+    result[0] = c;
+    result[1] = s;
+    result[3] = -s;
+    result[4] = c;
+    result[8] = 1.0;
+    result
+}
+
+/// Create a 3x3 roll rotation matrix.
+fn roll_matrix(roll: f32) -> Vec<f32> {
+    let mut result = vec![0.0f32; 9];
+    let s = roll.sin();
+    let c = roll.cos();
+    result[0] = 1.0;
+    result[4] = c;
+    result[5] = s;
+    result[7] = -s;
+    result[8] = c;
+    result
+}
+
+/// Create a 3x3 yaw rotation matrix.
+fn yaw_matrix(yaw: f32) -> Vec<f32> {
+    let mut result = vec![0.0f32; 9];
+    let s = yaw.sin();
+    let c = yaw.cos();
+    result[0] = c;
+    result[2] = -s;
+    result[4] = 1.0;
+    result[6] = s;
+    result[8] = c;
+    result
+}
+
+/// Build a combined yaw-pitch-roll rotation matrix.
+/// Python: `make_ypr_matrix(base, orientation)`
+fn make_ypr_matrix(base: &[f32], orient: &Orient) -> Vec<f32> {
+    let mat = multiply3x3matrices(base, &yaw_matrix(orient.yaw));
+    let mat = multiply3x3matrices(&mat, &pitch_matrix(orient.pitch));
+    multiply3x3matrices(&mat, &roll_matrix(orient.roll))
 }
 
 pub struct DynamicFreeCameraController {

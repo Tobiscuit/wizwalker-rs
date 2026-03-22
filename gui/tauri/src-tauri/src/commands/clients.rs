@@ -9,6 +9,8 @@ use std::sync::Mutex;
 
 use tauri::State;
 
+use wizwalker::memory::reader::MemoryReaderExt;
+
 use crate::state::{ClientInfo, CommandError, CommandResult, WizState};
 
 /// Helper: build ClientInfo from a locked Client.
@@ -125,8 +127,25 @@ pub fn close_client(
 
     if let Some(client_arc) = wiz.clients.remove(&label) {
         let mut client = client_arc.blocking_lock();
+
+        // Python Deimos.py:489-517 tool_finish() cleanup:
+        // 1. Restore original speed multiplier to normal (0 = 1x)
+        if let Ok(client_base) = client.hook_handler.read_current_client_base() {
+            if let Some(reader) = client.process_reader() {
+                let client_obj_ptr: u64 = reader.read_typed(client_base + 0x21318).unwrap_or(0);
+                if client_obj_ptr != 0 {
+                    let normal: i16 = 0;
+                    let _ = reader.write_typed::<i16>(client_obj_ptr as usize + 192, &normal);
+                }
+            }
+        }
+
+        // 2. Reset window title to "Wizard101"
+        client.set_title("Wizard101");
+
+        // 3. Close (unhook + release)
         client.close();
-        tracing::info!("Client {label} closed");
+        tracing::info!("Client {label} closed with cleanup (speed restored, title reset)");
     }
 
     Ok(())

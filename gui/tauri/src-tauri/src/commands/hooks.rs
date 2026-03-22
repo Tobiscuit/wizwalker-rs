@@ -33,16 +33,32 @@ pub fn toggle_hook(
     // Dispatch to the appropriate backend action.
     match name.as_str() {
         "speedhack" => {
-            // Write speed multiplier to game memory via ClientHook export
-            // Python: client_object.speed_multiplier (CoreObject offset 192, i16)
-            let speed_val = if enabled { wiz.speed_multiplier as i16 } else { 100i16 };
+            // Write speed multiplier to game memory
+            // Pointer chain: GameClient → root_client_object (offset 0x21318) → CoreObject → speed_multiplier (+192, i16)
+            // Value semantics: game computes speed = (value/100) + 1
+            //   0   = normal speed (1x)
+            //   100 = double speed (2x)
+            //   200 = triple speed (3x)
+            let speed_val = if enabled {
+                ((wiz.speed_multiplier - 1.0) * 100.0) as i16
+            } else {
+                0i16
+            };
             for (_label, client_arc) in &wiz.clients {
                 if let Ok(client) = client_arc.try_lock() {
+                    // Step 1: Get GameClient base from ClientHook
                     if let Ok(client_base) = client.hook_handler.read_current_client_base() {
                         if let Some(reader) = client.process_reader() {
-                            let _ = reader.write_typed::<i16>(client_base + 192, &speed_val);
-                            eprintln!("[arcane] Speedhack: wrote speed={} to client base 0x{:X}+192",
-                                speed_val, client_base);
+                            // Step 2: Dereference GameClient + 0x21318 → root_client_object (CoreObject*)
+                            let client_obj_ptr: u64 = reader.read_typed(client_base + 0x21318).unwrap_or(0);
+                            if client_obj_ptr != 0 {
+                                // Step 3: Write speed_multiplier at CoreObject + 192
+                                let _ = reader.write_typed::<i16>(client_obj_ptr as usize + 192, &speed_val);
+                                eprintln!("[arcane] Speedhack: wrote speed={} to client_object 0x{:X}+192 (via GameClient 0x{:X}+0x21318)",
+                                    speed_val, client_obj_ptr, client_base);
+                            } else {
+                                eprintln!("[arcane] Speedhack: root_client_object is null at GameClient 0x{:X}+0x21318", client_base);
+                            }
                         }
                     }
                 }

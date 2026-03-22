@@ -1,6 +1,10 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { ToggleSwitch } from "../components/ToggleSwitch";
 import { useWizWalker } from "../hooks/useWizWalker";
+import { LazyStore } from "@tauri-apps/plugin-store";
+
+// Persistent settings store — matches Python Deimos config.ini behavior
+const settingsStore = new LazyStore("settings.json");
 
 const hotkeys = [
   { action: "Speed Toggle", key: "F5" },
@@ -17,6 +21,7 @@ const hotkeys = [
 
 export function Settings() {
   const wiz = useWizWalker();
+  const storeLoaded = useRef(false);
 
   const [settings, setSettings] = useState({
     auto_potions: false,
@@ -30,8 +35,27 @@ export function Settings() {
   const [speedMultiplier, setSpeedMultiplier] = useState(1.0);
   const [theme, setTheme] = useState<"dark" | "light">("dark");
 
-  // Load initial state from IPC
+  // Load initial state — from persistent store first, then IPC as fallback
   useEffect(() => {
+    // Load persisted settings from disk
+    (async () => {
+      try {
+        const savedSpeed = await settingsStore.get<number>("speed_multiplier");
+        if (savedSpeed != null) {
+          setSpeedMultiplier(savedSpeed);
+          await wiz.setSpeedMultiplier(savedSpeed); // Sync to backend
+        }
+        const savedAntiAfk = await settingsStore.get<boolean>("anti_afk");
+        if (savedAntiAfk != null) {
+          setSettings((prev) => ({ ...prev, anti_afk: savedAntiAfk }));
+        }
+      } catch {
+        // Store not available yet, will use defaults
+      }
+      storeLoaded.current = true;
+    })();
+
+    // Also sync with backend IPC state
     wiz.getToggleStates().then((toggles) => {
       setSettings((prev) => ({
         ...prev,
@@ -43,11 +67,15 @@ export function Settings() {
     wiz.getSpeedMultiplier().then(setSpeedMultiplier).catch(() => {});
   }, []);
 
-  // Toggle a setting via IPC
+  // Toggle a setting via IPC + persist to disk
   const handleToggle = useCallback(async (key: string, enabled: boolean) => {
     setSettings((prev) => ({ ...prev, [key]: enabled }));
     try {
       await wiz.toggleHook(key, enabled);
+      // Persist toggleable settings
+      if (["anti_afk", "auto_potions", "drop_logging", "discord_rpc"].includes(key)) {
+        await settingsStore.set(key, enabled);
+      }
     } catch (err) {
       console.error("Toggle failed:", err);
       // Revert on failure
@@ -55,12 +83,13 @@ export function Settings() {
     }
   }, [wiz]);
 
-  // Speed multiplier — update via IPC on +/- click
+  // Speed multiplier — update via IPC + persist to disk
   const handleSpeedChange = useCallback(async (delta: number) => {
     const newValue = Math.min(20, Math.max(1, speedMultiplier + delta));
     setSpeedMultiplier(newValue);
     try {
       await wiz.setSpeedMultiplier(newValue);
+      await settingsStore.set("speed_multiplier", newValue);
     } catch (err) {
       console.error("Set speed failed:", err);
     }

@@ -265,3 +265,21 @@ pub fn get_popup_title(client: &Client) -> Option<String> {
 pub fn is_in_npc_range(client: &Client) -> bool {
     is_visible_by_path(client, paths::NPC_RANGE)
 }
+
+/// Try to close NPC and shop menus by clicking each provided path.
+///
+/// Python: `async def exit_menus(client, paths_to_try)`
+pub async fn exit_menus(client: &Client, menu_paths: &[&[&str]]) {
+    for path in menu_paths {
+        if is_visible_by_path(client, path) {
+            click_window_by_path(client, path).await;
+            tokio::time::sleep(std::time::Duration::from_millis(200)).await;
+        }
+    }
+}
+
+/// Read the NPC Range popup message text.
+pub fn read_popup_message(client: &Client) -> String {
+    text_from_path(client, paths::POPUP_MSGTEXT).unwrap_or_default()
+}
+

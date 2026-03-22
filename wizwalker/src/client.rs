@@ -585,6 +585,474 @@ impl Client {
             }
         }
     }
+
+    // ── Teleport & Position Methods ────────────────────────────────
+
+    /// Teleport the player to the given XYZ position.
+    ///
+    /// Faithfully ported from Python `Client._teleport_object()` (client.py:531).
+    ///
+    /// TeleportHelper memory layout:
+    /// - offset 0:  XYZ position (3 × f32 = 12 bytes)
+    /// - offset 12: should_update (bool, 1 byte)
+    /// - offset 13: target_object_address (u64, 8 bytes)
+    ///
+    /// # Python equivalent
+    /// ```python
+    /// await self._teleport_helper.write_target_object_address(object_address)
+    /// await self._teleport_helper.write_position(xyz)
+    /// await self._teleport_helper.write_should_update(True)
+    /// ```
+    pub fn teleport(&self, xyz: &crate::types::XYZ) -> crate::errors::Result<()> {
+        use crate::memory::hooks::HookType;
+
+        if !self.hook_handler.check_if_hook_active(HookType::MovementTeleport) {
+            return Err(crate::errors::WizWalkerError::Other(
+                "Movement teleport hook not active".into(),
+            ));
+        }
+
+        let reader = self.process_reader()
+            .ok_or_else(|| crate::errors::WizWalkerError::Other("Reader not attached".into()))?;
+        let helper_addr = self.hook_handler.read_teleport_helper()?;
+
+        // Wait for should_update to become false (offset 12)
+        for _ in 0..20 {
+            let su: u8 = reader.read_typed(helper_addr + 12).unwrap_or(0);
+            if su == 0 { break; }
+            std::thread::sleep(std::time::Duration::from_millis(50));
+        }
+
+        // Get client_object base for target_object_address
+        let client_base = self.hook_handler.read_current_client_base().unwrap_or(0) as u64;
+
+        // Write target_object_address at offset 13
+        reader.write_bytes(helper_addr + 13, &client_base.to_le_bytes())?;
+
+        // Write XYZ position at offset 0
+        let mut xyz_buf = Vec::with_capacity(12);
+        xyz_buf.extend_from_slice(&xyz.x.to_le_bytes());
+        xyz_buf.extend_from_slice(&xyz.y.to_le_bytes());
+        xyz_buf.extend_from_slice(&xyz.z.to_le_bytes());
+        reader.write_bytes(helper_addr, &xyz_buf)?;
+
+        // Write should_update = true at offset 12
+        reader.write_bytes(helper_addr + 12, &[0x01])?;
+
+        // Wait for should_update to reset (game consumed the teleport)
+        for _ in 0..12 {
+            let su: u8 = reader.read_typed(helper_addr + 12).unwrap_or(0);
+            if su == 0 { break; }
+            std::thread::sleep(std::time::Duration::from_millis(50));
+        }
+
+        Ok(())
+    }
+
+    /// Wait for the loading screen to finish.
+    pub async fn wait_for_loading_screen(&self) {
+        use tokio::time::{sleep, Duration};
+        // Wait until is_loading becomes true, then wait until it becomes false
+        for _ in 0..100 {
+            if self.is_loading() { break; }
+            sleep(Duration::from_millis(100)).await;
+        }
+        for _ in 0..300 {
+            if !self.is_loading() { break; }
+            sleep(Duration::from_millis(100)).await;
+        }
+    }
+
+    /// Read the quest objective position from the QuestHook export.
+    ///
+    /// Python: `await self.quest_position.position()`
+    pub fn quest_position(&self) -> Option<crate::types::XYZ> {
+        let quest_base = self.hook_handler.read_current_quest_base().ok()?;
+        let reader = self.process_reader()?;
+        let x: f32 = reader.read_typed(quest_base + 0).ok()?;
+        let y: f32 = reader.read_typed(quest_base + 4).ok()?;
+        let z: f32 = reader.read_typed(quest_base + 8).ok()?;
+        Some(crate::types::XYZ { x, y, z })
+    }
+
+    /// Read the player body position from the PlayerHook export.
+    ///
+    /// Python: `await self.body.position()`
+    pub fn body_position(&self) -> Option<crate::types::XYZ> {
+        let player_base = self.hook_handler.read_current_player_base().ok()?;
+        let reader = self.process_reader()?;
+        let x: f32 = reader.read_typed(player_base + 88).ok()?;
+        let y: f32 = reader.read_typed(player_base + 92).ok()?;
+        let z: f32 = reader.read_typed(player_base + 96).ok()?;
+        Some(crate::types::XYZ { x, y, z })
+    }
+
+    /// Get a mutable reference to the hook handler.
+    pub fn hook_handler_mut(&mut self) -> &mut HookHandler {
+        &mut self.hook_handler
+    }
+
+    /// Get the current player's mana.
+    ///
+    /// Python: `await self.stats.current_mana()` — offset 136 from stat base.
+    /// (Offset 116 is current_gold, 136 is current_mana per game_stats.py)
+    pub fn stats_current_mana(&self) -> Option<i32> {
+        let stat_base = self.hook_handler.read_current_player_stat_base().ok()?;
+        let reader = self.process_reader()?;
+        let mana: i32 = reader.read_typed(stat_base + 136).ok()?;
+        Some(mana)
+    }
+
+    /// Read a wide (UTF-16) string from a memory address.
+    pub fn read_wide_string_at(&self, address: usize) -> Option<String> {
+        let reader = self.process_reader()?;
+        // WizWalker wide strings: [u32 length, u16[] chars]
+        let len: u32 = reader.read_typed(address).ok()?;
+        if len == 0 || len > 512 { return None; }
+        let bytes = reader.read_bytes(address + 4, len as usize * 2).ok()?;
+        let u16s: Vec<u16> = bytes.chunks_exact(2)
+            .map(|c| u16::from_le_bytes([c[0], c[1]]))
+            .collect();
+        Some(String::from_utf16_lossy(&u16s))
+    }
+
+    // ── Body Read/Write Methods ─────────────────────────────────────
+
+    /// Read the player body yaw (rotation around Z axis).
+    ///
+    /// Python: `await self.body.yaw()` — actor_body.py offset 108
+    pub fn body_read_yaw(&self) -> Option<f32> {
+        let player_base = self.hook_handler.read_current_player_base().ok()?;
+        let reader = self.process_reader()?;
+        reader.read_typed::<f32>(player_base + 108).ok()
+    }
+
+    /// Write the player body yaw (rotation around Z axis).
+    ///
+    /// Python: `await self.body.write_yaw(yaw)` — actor_body.py offset 108
+    pub fn body_write_yaw(&self, yaw: f32) -> crate::errors::Result<()> {
+        let player_base = self.hook_handler.read_current_player_base()?;
+        let reader = self.process_reader()
+            .ok_or_else(|| crate::errors::WizWalkerError::Other("Reader not attached".into()))?;
+        reader.write_typed(player_base + 108, &yaw)
+    }
+
+    /// Read the player body roll.
+    ///
+    /// Python: `await self.body.roll()` — actor_body.py offset 104
+    pub fn body_read_roll(&self) -> Option<f32> {
+        let player_base = self.hook_handler.read_current_player_base().ok()?;
+        let reader = self.process_reader()?;
+        reader.read_typed::<f32>(player_base + 104).ok()
+    }
+
+    /// Write the player body roll.
+    ///
+    /// Python: `await self.body.write_roll(roll)` — actor_body.py offset 104
+    pub fn body_write_roll(&self, roll: f32) -> crate::errors::Result<()> {
+        let player_base = self.hook_handler.read_current_player_base()?;
+        let reader = self.process_reader()
+            .ok_or_else(|| crate::errors::WizWalkerError::Other("Reader not attached".into()))?;
+        reader.write_typed(player_base + 104, &roll)
+    }
+
+    /// Read the player body scale.
+    ///
+    /// Python: `await self.body.scale()` — actor_body.py offset 112
+    pub fn body_read_scale(&self) -> Option<f32> {
+        let player_base = self.hook_handler.read_current_player_base().ok()?;
+        let reader = self.process_reader()?;
+        reader.read_typed::<f32>(player_base + 112).ok()
+    }
+
+    /// Write the player body scale.
+    ///
+    /// Python: `await self.body.write_scale(scale)` — actor_body.py offset 112
+    pub fn body_write_scale(&self, scale: f32) -> crate::errors::Result<()> {
+        let player_base = self.hook_handler.read_current_player_base()?;
+        let reader = self.process_reader()
+            .ok_or_else(|| crate::errors::WizWalkerError::Other("Reader not attached".into()))?;
+        reader.write_typed(player_base + 112, &scale)
+    }
+
+    /// Read the player body height.
+    ///
+    /// Python: `await self.body.height()` — actor_body.py offset 132
+    pub fn body_read_height(&self) -> Option<f32> {
+        let player_base = self.hook_handler.read_current_player_base().ok()?;
+        let reader = self.process_reader()?;
+        reader.read_typed::<f32>(player_base + 132).ok()
+    }
+
+    /// Write the player body height.
+    ///
+    /// Python: `await self.body.write_height(height)` — actor_body.py offset 132
+    pub fn body_write_height(&self, height: f32) -> crate::errors::Result<()> {
+        let player_base = self.hook_handler.read_current_player_base()?;
+        let reader = self.process_reader()
+            .ok_or_else(|| crate::errors::WizWalkerError::Other("Reader not attached".into()))?;
+        reader.write_typed(player_base + 132, &height)
+    }
+
+    // ── Movement Methods ────────────────────────────────────────────
+
+    /// Base movement speed of a wizard (units/second).
+    ///
+    /// Python: `WIZARD_SPEED = 580` — constants.py:13
+    const WIZARD_SPEED: f32 = 580.0;
+
+    /// Walk the player to a specific (x, y) coordinate by setting yaw and holding W.
+    ///
+    /// This calculates the yaw toward the target, writes it to the body, then
+    /// holds the W key for the appropriate duration based on distance and speed.
+    ///
+    /// Python: `async def goto(self, x, y)` — client.py:473
+    pub fn goto(&self, x: f32, y: f32) {
+        let Some(current_xyz) = self.body_position() else { return };
+
+        let target = crate::types::XYZ { x, y, z: current_xyz.z };
+        let dx = current_xyz.x - target.x;
+        let dy = current_xyz.y - target.y;
+        let distance = (dx * dx + dy * dy).sqrt();
+
+        // Calculate yaw toward target
+        let yaw = dx.atan2(dy);
+
+        // Write yaw to body
+        if self.body_write_yaw(yaw).is_err() {
+            return;
+        }
+
+        // Calculate movement duration
+        // Speed multiplier would be read from client_object.speed_multiplier()
+        // For now, use default (no speed boost): (0/100) + 1 = 1.0
+        let speed_multiplier = 1.0f32;
+        let move_seconds = distance / (Self::WIZARD_SPEED * speed_multiplier);
+
+        // Hold W key for the calculated duration
+        self.timed_send_key(crate::constants::Keycode::W, move_seconds as f64);
+    }
+
+    // ── Camera Methods ──────────────────────────────────────────────
+
+    // ── GameClient offset constants ──────────────────────────────────
+    //
+    // Default offsets from game_client.py (may vary by game version).
+    // In the Python these are resolved via pattern_scan_offset_cached() with
+    // a fallback constant; we use the fallback directly.
+
+    /// Offset from GameClient base → elastic camera controller pointer.
+    const GC_ELASTIC_CAMERA: usize = 0x22260;
+    /// Offset from GameClient base → free camera controller pointer.
+    const GC_FREE_CAMERA: usize = 0x22270;
+    /// Offset from GameClient base → selected (active) camera controller pointer.
+    const GC_SELECTED_CAMERA: usize = 0x22290;
+    /// Offset from GameClient base → is_freecam bool.
+    const GC_IS_FREECAM: usize = 0x222A8;
+
+    // ── Camera read helpers ─────────────────────────────────────────
+
+    /// Get the GameClient base address (from the ClientHook export).
+    fn game_client_base(&self) -> crate::errors::Result<usize> {
+        self.hook_handler.read_current_client_base()
+    }
+
+    /// Check if the camera is in freecam mode.
+    ///
+    /// Python: `await self.game_client.is_freecam()` — game_client.py:93
+    pub fn camera_is_freecam(&self) -> Option<bool> {
+        let gc = self.game_client_base().ok()?;
+        let reader = self.process_reader()?;
+        let val: u8 = reader.read_typed(gc + Self::GC_IS_FREECAM).ok()?;
+        Some(val != 0)
+    }
+
+    /// Write the is_freecam flag.
+    ///
+    /// Python: `await self.game_client.write_is_freecam(val)` — game_client.py:107
+    fn camera_write_is_freecam(&self, val: bool) -> crate::errors::Result<()> {
+        let gc = self.game_client_base()?;
+        let reader = self.process_reader()
+            .ok_or_else(|| crate::errors::WizWalkerError::Other("Reader not attached".into()))?;
+        let byte: u8 = if val { 1 } else { 0 };
+        reader.write_typed(gc + Self::GC_IS_FREECAM, &byte)
+    }
+
+    /// Read a camera controller pointer from GameClient.
+    fn camera_read_controller(&self, offset: usize) -> Option<u64> {
+        let gc = self.game_client_base().ok()?;
+        let reader = self.process_reader()?;
+        let addr: u64 = reader.read_typed(gc + offset).ok()?;
+        if addr == 0 { None } else { Some(addr) }
+    }
+
+    // ── Camera switching ────────────────────────────────────────────
+
+    /// Swap between freecam and elastic camera controllers.
+    ///
+    /// Python: `async def camera_swap(self)` — client.py:595
+    pub fn camera_swap(&self) {
+        match self.camera_is_freecam() {
+            Some(true) => self.camera_elastic(),
+            Some(false) => self.camera_freecam(),
+            None => {
+                tracing::warn!("camera_swap: ClientHook not active — cannot determine camera mode");
+            }
+        }
+    }
+
+    /// Switch to freecam camera controller.
+    ///
+    /// Python: `async def camera_freecam(self)` — client.py:605
+    pub fn camera_freecam(&self) {
+        let gc = match self.game_client_base() {
+            Ok(gc) => gc,
+            Err(e) => {
+                tracing::warn!("camera_freecam: cannot get GameClient base: {e}");
+                return;
+            }
+        };
+        let reader = match &self.reader {
+            Some(r) => r,
+            None => { tracing::warn!("camera_freecam: reader not attached"); return; }
+        };
+
+        // 1. Write is_freecam = true
+        let _ = self.camera_write_is_freecam(true);
+
+        // 2. Read elastic / free camera controller addresses
+        let elastic_addr = match self.camera_read_controller(Self::GC_ELASTIC_CAMERA) {
+            Some(a) => a,
+            None => { tracing::warn!("camera_freecam: elastic camera controller is null"); return; }
+        };
+        let free_addr = match self.camera_read_controller(Self::GC_FREE_CAMERA) {
+            Some(a) => a,
+            None => { tracing::warn!("camera_freecam: free camera controller is null"); return; }
+        };
+
+        // 3. Switch camera: new=free, old=elastic
+        if let Err(e) = self.camera_switch_camera(reader.as_ref(), gc as u64, free_addr, elastic_addr) {
+            tracing::warn!("camera_freecam: switch failed: {e}");
+        }
+    }
+
+    /// Switch to elastic (normal) camera controller.
+    ///
+    /// Python: `async def camera_elastic(self)` — client.py:625
+    pub fn camera_elastic(&self) {
+        let gc = match self.game_client_base() {
+            Ok(gc) => gc,
+            Err(e) => {
+                tracing::warn!("camera_elastic: cannot get GameClient base: {e}");
+                return;
+            }
+        };
+        let reader = match &self.reader {
+            Some(r) => r,
+            None => { tracing::warn!("camera_elastic: reader not attached"); return; }
+        };
+
+        // 1. Write is_freecam = false
+        let _ = self.camera_write_is_freecam(false);
+
+        // 2. Read elastic / free camera controller addresses
+        let elastic_addr = match self.camera_read_controller(Self::GC_ELASTIC_CAMERA) {
+            Some(a) => a,
+            None => { tracing::warn!("camera_elastic: elastic camera controller is null"); return; }
+        };
+        let free_addr = match self.camera_read_controller(Self::GC_FREE_CAMERA) {
+            Some(a) => a,
+            None => { tracing::warn!("camera_elastic: free camera controller is null"); return; }
+        };
+
+        // 3. Switch camera: new=elastic, old=free
+        if let Err(e) = self.camera_switch_camera(reader.as_ref(), gc as u64, elastic_addr, free_addr) {
+            tracing::warn!("camera_elastic: switch failed: {e}");
+        }
+    }
+
+    /// Execute the camera switch via shellcode injection.
+    ///
+    /// Faithfully ported from `client.py:685 _switch_camera()`.
+    ///
+    /// This allocates a shellcode buffer in the game process, writes x86-64
+    /// machine code that calls the game's SetCamera vtable function, executes
+    /// it via CreateRemoteThread, and then frees the buffer.
+    fn camera_switch_camera(
+        &self,
+        reader: &crate::memory::process_reader::ProcessMemoryReader,
+        game_client_addr: u64,
+        new_camera_addr: u64,
+        old_camera_addr: u64,
+    ) -> crate::errors::Result<()> {
+        let pack = |addr: u64| -> [u8; 8] { addr.to_le_bytes() };
+
+        let gc_bytes = pack(game_client_addr);
+        let new_bytes = pack(new_camera_addr);
+        let old_bytes = pack(old_camera_addr);
+
+        // Build shellcode — exact match of Python's client.py:696-739
+        let mut shellcode: Vec<u8> = Vec::with_capacity(128);
+
+        // ── setup: save registers ──
+        shellcode.push(0x50);                       // push rax
+        shellcode.push(0x51);                       // push rcx
+        shellcode.push(0x52);                       // push rdx
+        shellcode.extend_from_slice(&[0x41, 0x50]); // push r8
+        shellcode.extend_from_slice(&[0x41, 0x51]); // push r9
+
+        // ── call set_cam(client, new_cam, ?, cam_swap_fn) ──
+        shellcode.extend_from_slice(&[0x48, 0xB9]); // mov rcx, client_addr
+        shellcode.extend_from_slice(&gc_bytes);
+        shellcode.extend_from_slice(&[0x48, 0xBA]); // mov rdx, new_cam_addr
+        shellcode.extend_from_slice(&new_bytes);
+        shellcode.extend_from_slice(&[0x49, 0xC7, 0xC0, 0x01, 0x00, 0x00, 0x00]); // mov r8, 1
+        shellcode.extend_from_slice(&[0x48, 0x8B, 0x01]); // mov rax, [rcx]
+        shellcode.extend_from_slice(&[0x48, 0x8B, 0x80, 0x70, 0x04, 0x00, 0x00]); // mov rax, [rax+0x470]
+        shellcode.extend_from_slice(&[0x49, 0x89, 0xC1]); // mov r9, rax
+        shellcode.extend_from_slice(&[0xFF, 0xD0]); // call rax
+
+        // ── call register_input_handlers(new_cam, active=1) ──
+        shellcode.extend_from_slice(&[0x48, 0xB9]); // mov rcx, client_addr
+        shellcode.extend_from_slice(&gc_bytes);
+        shellcode.extend_from_slice(&[0x48, 0xB8]); // mov rax, new_cam_addr
+        shellcode.extend_from_slice(&new_bytes);
+        shellcode.extend_from_slice(&[0x48, 0x89, 0xC1]); // mov rcx, rax
+        shellcode.extend_from_slice(&[0x48, 0x8B, 0x01]); // mov rax, [rcx]
+        shellcode.extend_from_slice(&[0x48, 0x8B, 0x40, 0x70]); // mov rax, [rax+0x70]
+        shellcode.extend_from_slice(&[0x48, 0xC7, 0xC2, 0x01, 0x00, 0x00, 0x00]); // mov rdx, 1
+        shellcode.extend_from_slice(&[0xFF, 0xD0]); // call rax
+
+        // ── call register_input_handlers(old_cam, active=0) ──
+        shellcode.extend_from_slice(&[0x48, 0xB9]); // mov rcx, client_addr
+        shellcode.extend_from_slice(&gc_bytes);
+        shellcode.extend_from_slice(&[0x48, 0xB8]); // mov rax, old_cam_addr
+        shellcode.extend_from_slice(&old_bytes);
+        shellcode.extend_from_slice(&[0x48, 0x89, 0xC1]); // mov rcx, rax
+        shellcode.extend_from_slice(&[0x48, 0x8B, 0x01]); // mov rax, [rcx]
+        shellcode.extend_from_slice(&[0x48, 0x8B, 0x40, 0x70]); // mov rax, [rax+0x70]
+        shellcode.extend_from_slice(&[0x48, 0xC7, 0xC2, 0x00, 0x00, 0x00, 0x00]); // mov rdx, 0
+        shellcode.extend_from_slice(&[0xFF, 0xD0]); // call rax
+
+        // ── cleanup: restore registers ──
+        shellcode.extend_from_slice(&[0x41, 0x59]); // pop r9
+        shellcode.extend_from_slice(&[0x41, 0x58]); // pop r8
+        shellcode.push(0x5A);                        // pop rdx
+        shellcode.push(0x59);                        // pop rcx
+        shellcode.push(0x58);                        // pop rax
+
+        // ── return ──
+        shellcode.push(0xC3); // ret
+
+        // Allocate, write, execute, free
+        let shell_ptr = reader.allocate(shellcode.len())?;
+        reader.write_bytes(shell_ptr, &shellcode)?;
+        let result = reader.start_thread(shell_ptr);
+        // Free regardless of result — start_thread waits for completion
+        let _ = reader.free(shell_ptr);
+
+        result
+    }
 }
 
 impl Drop for Client {

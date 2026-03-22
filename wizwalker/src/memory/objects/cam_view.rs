@@ -1,5 +1,6 @@
 use crate::errors::Result;
 use crate::memory::memory_object::{MemoryObject, DynamicMemoryObject};
+use crate::memory::reader::MemoryReaderExt;
 
 pub struct DynamicCamView {
     pub inner: DynamicMemoryObject,
@@ -8,6 +9,35 @@ pub struct DynamicCamView {
 impl DynamicCamView {
     pub fn new(inner: DynamicMemoryObject) -> Self {
         Self { inner }
+    }
+
+    /// Read the 3x3 view matrix (9 floats at offset 80).
+    /// Python: `await self.read_vector(80, 9)`
+    pub fn view_matrix(&self) -> Result<Vec<f32>> {
+        let base_address = self.inner.read_base_address()?;
+        let reader = self.inner.reader();
+        let mut matrix = Vec::with_capacity(9);
+        for i in 0..9u64 {
+            let val: f32 = reader.read_typed((base_address + 80 + i * 4) as usize)?;
+            matrix.push(val);
+        }
+        Ok(matrix)
+    }
+
+    /// Write the 3x3 view matrix (9 floats at offset 80).
+    /// Python: `await self.write_vector(80, tuple(values), 9)`
+    pub fn write_view_matrix(&self, vals: &[f32]) -> Result<()> {
+        if vals.len() != 9 {
+            return Err(crate::errors::WizWalkerError::Other(
+                "view_matrix requires 9 values".into(),
+            ));
+        }
+        let base_address = self.inner.read_base_address()?;
+        let reader = self.inner.reader();
+        for i in 0..9u64 {
+            reader.write_typed((base_address + 80 + i * 4) as usize, &vals[i as usize])?;
+        }
+        Ok(())
     }
 
     pub fn cull_near(&self) -> Result<f32> {

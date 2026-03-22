@@ -1,8 +1,7 @@
 //! Camera read/write commands (synchronous).
 //!
-//! The camera controller is accessed via GameClient → selected_camera_controller
-//! at a pattern-scanned offset. For now we use the hardcoded offset from Python
-//! reference (0x22290 = 140944 from game client base).
+//! Camera controller access chain (from Python game_client.py):
+//!   GameClient base (ClientHook) → selected_camera_controller at +0x22290 → deref → camera
 //!
 //! Camera controller offsets (from Python camera_controller.py):
 //!  - position: 108 (XYZ, 3x f32)
@@ -18,10 +17,11 @@ use wizwalker::memory::reader::MemoryReaderExt;
 
 use crate::state::{CameraState, CommandError, CommandResult, Position, WizState};
 
-/// Helper: get the camera controller base address for the active client.
+/// Helper: resolve the selected_camera_controller base address.
 ///
-/// Chain: GameClient base (from ClientHook) → offset 0x22290 → deref → camera controller
-fn get_camera_base(wiz: &WizState) -> Result<(usize, std::sync::Arc<dyn wizwalker::memory::MemoryReader>), CommandError> {
+/// Chain: GameClient base (ClientHook) → [+0x22290] → camera controller pointer
+/// Python: game_client.py selected_camera_controller() at offset 0x22290
+fn resolve_camera_controller(wiz: &WizState) -> Result<(usize, std::sync::Arc<dyn wizwalker::memory::MemoryReader>), CommandError> {
     let label = WizState::client_label(wiz.active_client_idx);
     let client_arc = wiz.clients.get(&label).ok_or_else(|| {
         CommandError::NoClients("No active client connected".into())
@@ -29,53 +29,63 @@ fn get_camera_base(wiz: &WizState) -> Result<(usize, std::sync::Arc<dyn wizwalke
 
     let client = client_arc.blocking_lock();
 
-    // Get the GameClient base from the ClientHook export
-    // Python: CurrentGameClient uses a pattern scan for its base, but the
-    // client hook captures the client object address, not GameClient.
-    // We need to get the selected_camera_controller from the GameClient.
-    // The GameClient base is obtained via a separate pattern scan in Python.
-    //
-    // For now, try reading the render context which gives us the camera.
-    let _render_base = client.hook_handler.read_current_render_context_base().map_err(|e| {
-        CommandError::HookError(format!("RenderContext hook not active: {e}"))
+    // Get GameClient base from ClientHook export
+    let client_base = client.hook_handler.read_current_client_base().map_err(|e| {
+        CommandError::HookError(format!("ClientHook not active: {e}"))
     })?;
 
     let reader = client.reader().ok_or_else(|| {
         CommandError::MemoryError("Client not opened".into())
     })?;
 
-    // The RenderContext doesn't directly give us the camera controller.
-    // We need the GameClient → selected_camera_controller path.
-    // Python offset: 0x22290 from GameClient base.
-    // But our ClientHook gives us the client_object (CoreObject), not GameClient.
-    //
-    // Alternative approach: read the elastic_camera_controller from the
-    // GameClient which is obtained via a separate pattern scan.
-    // This requires a GameClient base address, which we don't have yet.
-    //
-    // Fallback: return the render context base and use it as a starting point.
-    // TODO: Implement proper GameClient base resolution via pattern scan.
-    Ok((_render_base, reader))
+    // Dereference GameClient + 0x22290 → selected_camera_controller*
+    let camera_ptr: u64 = reader.read_typed(client_base + 0x22290).map_err(|e| {
+        CommandError::MemoryError(format!("Failed to read camera controller pointer: {e}"))
+    })?;
+
+    if camera_ptr == 0 {
+        return Err(CommandError::MemoryError("selected_camera_controller is null".into()));
+    }
+
+    Ok((camera_ptr as usize, reader))
 }
 
 /// Get the current camera state.
+///
+/// Python: reads position (108), pitch (120), roll (124), yaw (128) from camera controller
 #[tauri::command]
 pub fn get_camera(
     state: State<'_, Mutex<WizState>>,
 ) -> CommandResult<CameraState> {
     let wiz = state.lock().unwrap();
 
-    match get_camera_base(&wiz) {
-        Ok((_base, _reader)) => {
-            // TODO: Once GameClient base is resolved, read camera controller
-            // For now return defaults — camera reading requires GameClient pattern scan
-            Ok(CameraState::default())
+    match resolve_camera_controller(&wiz) {
+        Ok((cam_base, reader)) => {
+            let position = Position {
+                x: reader.read_typed::<f32>(cam_base + 108).unwrap_or(0.0),
+                y: reader.read_typed::<f32>(cam_base + 112).unwrap_or(0.0),
+                z: reader.read_typed::<f32>(cam_base + 116).unwrap_or(0.0),
+            };
+            let pitch = reader.read_typed::<f32>(cam_base + 120).unwrap_or(0.0);
+            let roll = reader.read_typed::<f32>(cam_base + 124).unwrap_or(0.0);
+            let yaw = reader.read_typed::<f32>(cam_base + 128).unwrap_or(0.0);
+
+            Ok(CameraState {
+                position,
+                pitch,
+                roll,
+                yaw,
+                fov: 0.0, // FOV is on a different object (gamebryo camera)
+                distance: 0.0, // Distance is on elastic camera controller
+            })
         }
         Err(_) => Ok(CameraState::default()),
     }
 }
 
 /// Set the camera position.
+///
+/// Python: camera_controller.write_position(xyz) at offsets 108, 112, 116
 #[tauri::command]
 pub fn set_camera_position(
     state: State<'_, Mutex<WizState>>,
@@ -84,27 +94,40 @@ pub fn set_camera_position(
     z: f32,
 ) -> CommandResult<()> {
     let wiz = state.lock().unwrap();
-    let (_base, _reader) = get_camera_base(&wiz)?;
+    let (cam_base, reader) = resolve_camera_controller(&wiz)?;
 
-    // TODO: Write to camera controller position (offset 108) once GameClient resolved
-    tracing::info!("set_camera_position({x}, {y}, {z}) — needs GameClient base resolution");
+    reader.write_typed(cam_base + 108, &x).map_err(|e| {
+        CommandError::MemoryError(format!("Failed to write camera X: {e}"))
+    })?;
+    reader.write_typed(cam_base + 112, &y).map_err(|e| {
+        CommandError::MemoryError(format!("Failed to write camera Y: {e}"))
+    })?;
+    reader.write_typed(cam_base + 116, &z).map_err(|e| {
+        CommandError::MemoryError(format!("Failed to write camera Z: {e}"))
+    })?;
+
+    tracing::info!("Camera position set to ({x}, {y}, {z})");
     Ok(())
 }
 
 /// Set the camera field of view.
+///
+/// Note: FOV is on the gamebryo camera, which is a different object.
+/// For now this is a stub — full FOV requires finding the NiCamera object.
 #[tauri::command]
 pub fn set_camera_fov(
     state: State<'_, Mutex<WizState>>,
     fov: f32,
 ) -> CommandResult<()> {
     let _wiz = state.lock().unwrap();
-
-    // TODO: Camera FOV is on the gamebryo_camera, offset from render context
-    tracing::info!("set_camera_fov({fov}) — needs GameClient base resolution");
+    // FOV is on the gamebryo NiCamera, not the camera controller
+    tracing::info!("set_camera_fov({fov}) — requires NiCamera object resolution");
     Ok(())
 }
 
 /// Set the camera rotation (yaw, pitch, roll).
+///
+/// Python: camera_controller pitch=120, roll=124, yaw=128
 #[tauri::command]
 pub fn set_camera_rotation(
     state: State<'_, Mutex<WizState>>,
@@ -113,9 +136,18 @@ pub fn set_camera_rotation(
     roll: f32,
 ) -> CommandResult<()> {
     let wiz = state.lock().unwrap();
-    let (_base, _reader) = get_camera_base(&wiz)?;
+    let (cam_base, reader) = resolve_camera_controller(&wiz)?;
 
-    // TODO: Write pitch (120), roll (124), yaw (128) once GameClient resolved
-    tracing::info!("set_camera_rotation(yaw={yaw}, pitch={pitch}, roll={roll}) — needs GameClient base");
+    reader.write_typed(cam_base + 120, &pitch).map_err(|e| {
+        CommandError::MemoryError(format!("Failed to write camera pitch: {e}"))
+    })?;
+    reader.write_typed(cam_base + 124, &roll).map_err(|e| {
+        CommandError::MemoryError(format!("Failed to write camera roll: {e}"))
+    })?;
+    reader.write_typed(cam_base + 128, &yaw).map_err(|e| {
+        CommandError::MemoryError(format!("Failed to write camera yaw: {e}"))
+    })?;
+
+    tracing::info!("Camera rotation set to (yaw={yaw}, pitch={pitch}, roll={roll})");
     Ok(())
 }
