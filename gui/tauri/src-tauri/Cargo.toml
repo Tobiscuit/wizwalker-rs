@@ -26,4 +26,8 @@ bitflags = "2"
 # Path dependency to the wizwalker core library
 wizwalker = { path = "../../../wizwalker" }
 tauri-plugin-store = "2.4.2"
+regex = "1"
+lazy_static = "1"
+serde_yaml = "0.9"
+thiserror = "2.0.18"
 

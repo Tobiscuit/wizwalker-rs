@@ -37,3 +37,6 @@ pub mod combat_utils;
 pub mod combat_cache;
 pub mod stat_viewer;
 pub mod deck_encoder;
+pub mod config_combat;
+pub mod command_parser;
+pub mod effect_simulation;

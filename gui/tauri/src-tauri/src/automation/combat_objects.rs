@@ -154,3 +154,25 @@ pub fn get_relevant_school_stats(stats: &[f32], excluded_ids: &[u32]) -> Vec<f32
 ///
 /// Python: uses `80289` as the universal/any-school magic school ID.
 pub const UNIVERSAL_SCHOOL_ID: u32 = 80289;
+
+/// Index mapper for school IDs → stat array positions.
+///
+/// Used by effect_simulation.rs to index into per-school stat arrays.
+/// Python equivalent: `magic_school_index` dict in combat_objects.py.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct MagicSchoolIndex(pub usize);
+
+impl MagicSchoolIndex {
+    /// Get the array index for a given school ID.
+    /// Returns index 6 (Balance) as fallback for unknown schools.
+    pub fn from_id(school_id: u32) -> Self {
+        MagicSchoolIndex(school_list_index(school_id).unwrap_or(6))
+    }
+}
+
+impl From<MagicSchoolIndex> for usize {
+    fn from(idx: MagicSchoolIndex) -> Self {
+        idx.0
+    }
+}
+

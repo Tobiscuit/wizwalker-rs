@@ -9,6 +9,7 @@ mod commands;
 mod events;
 mod state;
 mod automation;
+mod deimoslang;
 
 use std::sync::Mutex;
 
