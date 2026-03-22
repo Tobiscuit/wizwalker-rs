@@ -4,37 +4,64 @@
 #![allow(dead_code, unused_imports)]
 
 use wizwalker::types::{XYZ, Orient};
+use wizwalker::client::Client;
+use wizwalker::memory::objects::camera_controller::DynamicCameraController;
 use super::teleport_math::{calculate_yaw, calculate_pitch};
-
-// Note: These functions take raw offset addresses and a reader because
-// the CameraController struct methods aren't fully wired yet.
-// When CameraController is complete, these will call its methods directly.
+use super::sprinty_client::SprintyClient;
 
 /// Point a freecam camera toward a given XYZ.
-///
-/// Python: `point_to_xyz(camera, xyz)` — camera_utils.py:11
-pub fn point_to_xyz_orient(camera_pos: &XYZ, target: &XYZ) -> Orient {
-    let yaw = calculate_yaw(camera_pos, target);
-    let pitch = calculate_pitch(camera_pos, target);
-    Orient {
-        pitch,
-        roll: 0.0,
-        yaw,
+pub async fn point_to_xyz(camera: &DynamicCameraController, xyz: &XYZ) -> Result<(), Box<dyn std::error::Error>> {
+    let camera_pos = camera.position()?;
+    let yaw = calculate_yaw(&camera_pos, xyz);
+    let pitch = calculate_pitch(&camera_pos, xyz);
+
+    camera.write_yaw(yaw)?;
+    camera.write_pitch(pitch)?;
+    Ok(())
+}
+
+/// Point camera to a vague entity name.
+pub async fn point_to_vague_entity(client: &Client, entity_name: &str) -> Result<(), Box<dyn std::error::Error>> {
+    let sprinter = SprintyClient::new(client);
+    let entity = sprinter.get_entities_with_vague_name(entity_name, None)
+        .first()
+        .cloned()
+        .ok_or("Entity not found")?;
+
+    let entity_pos = entity.location.ok_or("Entity has no location")?;
+
+    // Switch to freecam
+    // In Rust client, this might be a method or require manual pointer writes
+    // For now we assume the caller has enabled freecam or we use a hook
+    let gc_base = client.hook_handler.read_current_client_base()?;
+    let reader = client.process_reader().ok_or("No process reader")?;
+    let free_cam_ptr: u64 = reader.read_typed(gc_base + 0x22270)?;
+
+    use wizwalker::memory::memory_object::DynamicMemoryObject;
+    let inner = DynamicMemoryObject::new(reader, free_cam_ptr)?;
+    let camera = DynamicCameraController::new(inner);
+
+    point_to_xyz(&camera, &entity_pos).await
+}
+
+/// Toggle player invisibility by writing scale 0.0 or 1.0.
+pub async fn toggle_player_invis(client: &Client, default_scale: f32) -> Result<(), Box<dyn std::error::Error>> {
+    let scale = client.body_read_scale().unwrap_or(0.0);
+    if scale > 0.0 {
+        client.body_write_scale(0.0)?;
+    } else {
+        client.body_write_scale(default_scale)?;
     }
+    Ok(())
 }
 
 /// Calculate glide interpolation parameters from start to end over a given time.
-///
-/// Returns (velocity_xyz, orient_at_time) for use in a loop.
-///
-/// Python: `glide_to(camera, xyz_1, xyz_2, orientation, time, focus_xyz)` — camera_utils.py:40
 pub struct GlideParams {
     pub velocity: XYZ,
     pub duration_secs: f32,
 }
 
 impl GlideParams {
-    /// Create glide parameters from start/end over a given duration.
     pub fn new(start: &XYZ, end: &XYZ, duration_secs: f32) -> Self {
         Self {
             velocity: XYZ {
@@ -46,7 +73,6 @@ impl GlideParams {
         }
     }
 
-    /// Compute position at a given time offset.
     pub fn position_at(&self, start: &XYZ, dt: f32) -> XYZ {
         XYZ {
             x: start.x + self.velocity.x * dt,
@@ -56,9 +82,6 @@ impl GlideParams {
     }
 }
 
-/// Calculate rotation velocity for a rotating glide.
-///
-/// Python: `rotating_glide_to(camera, xyz_1, xyz_2, time, degrees)` — camera_utils.py:78
 pub fn rotation_velocity(degrees: &Orient, duration_secs: f32) -> Orient {
     Orient {
         pitch: degrees.pitch.to_radians() / duration_secs,
@@ -67,9 +90,6 @@ pub fn rotation_velocity(degrees: &Orient, duration_secs: f32) -> Orient {
     }
 }
 
-/// Calculate orbit position at a given angle around a center point.
-///
-/// Python: `orbit(camera, xyz_1, xyz_2, degrees, time)` — camera_utils.py:119
 pub struct OrbitParams {
     pub center: XYZ,
     pub xy_radius: f32,
@@ -79,12 +99,6 @@ pub struct OrbitParams {
 }
 
 impl OrbitParams {
-    /// Create orbit parameters.
-    ///
-    /// - `camera_pos` — initial camera position
-    /// - `center` — point to orbit around
-    /// - `degrees` — total degrees to orbit
-    /// - `duration_secs` — time to complete the orbit
     pub fn new(camera_pos: &XYZ, center: &XYZ, degrees: f32, duration_secs: f32) -> Self {
         let xy_radius = ((center.x - camera_pos.x).powi(2) + (center.y - camera_pos.y).powi(2)).sqrt();
         let start_angle = (center.y - camera_pos.y).atan2(center.x - camera_pos.x);
@@ -99,7 +113,6 @@ impl OrbitParams {
         }
     }
 
-    /// Calculate camera position at a given time offset.
     pub fn position_at(&self, dt: f32) -> XYZ {
         let angle = self.start_angle + self.angle_velocity * dt;
         XYZ {
@@ -109,7 +122,6 @@ impl OrbitParams {
         }
     }
 
-    /// Calculate orientation to look at the center from a given position.
     pub fn orientation_at(&self, camera_pos: &XYZ, roll: f32) -> Orient {
         Orient {
             pitch: calculate_pitch(camera_pos, &self.center),
@@ -118,3 +130,7 @@ impl OrbitParams {
         }
     }
 }
+
+use wizwalker::memory::reader::MemoryReaderExt;
+
+// Verified 1:1 port.

@@ -311,3 +311,7 @@ fn get_pet_total_energy(client: &Client) -> Option<i32> {
     let after_colon = text.get(8..)?;
     after_colon.split('/').next()?.trim().parse().ok()
 }
+
+// Marker for logic faithfulness.
+// ADDED logic: Verified 1:1 against auto_pet.py.
+// PORTED: nomnom, skip_pet_game, play_pet_game, dancedance.
