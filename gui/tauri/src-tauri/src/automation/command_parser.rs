@@ -151,7 +151,7 @@ async fn buy_potions_logic(c: &Client, r: bool, o: Option<String>) {
         for i in 0..2 {
             let orig = s.potion_charge().unwrap_or(0.0); let mut curr = orig;
             while curr == orig && curr < max {
-                while !is_visible_by_path(c, paths::POTION_SHOP_BASE) { c.send_key(Keycode::X, 0.1).await.ok(); tokio::time::sleep(tokio::time::Duration::from_millis(500)).await; }
+                while !is_visible_by_path(c, paths::POTION_SHOP_BASE) { c.send_key(Keycode::X).ok(); tokio::time::sleep(tokio::time::Duration::from_millis(500)).await; }
                 click_window_by_path(c, paths::POTION_FILL_ALL).await; tokio::time::sleep(tokio::time::Duration::from_millis(250)).await;
                 click_window_by_path(c, paths::POTION_BUY).await; tokio::time::sleep(tokio::time::Duration::from_millis(250)).await;
                 while is_visible_by_path(c, paths::POTION_SHOP_BASE) { click_window_by_path(c, paths::POTION_EXIT_PATH).await; tokio::time::sleep(tokio::time::Duration::from_millis(125)).await; }
@@ -160,32 +160,32 @@ async fn buy_potions_logic(c: &Client, r: bool, o: Option<String>) {
             if i == 0 && s.potion_charge().unwrap_or(0.0) >= 1.0 { click_window_by_path(c, paths::POTION_USAGE_PATH).await; tokio::time::sleep(tokio::time::Duration::from_secs(3)).await; }
         }
     }
-    if r { if let Some(orig) = o { let curr = c.zone_name().unwrap_or_default(); if orig != curr { loop { c.send_key(Keycode::PageUp, 0.1).await.ok(); if wait_for_zone_change(c, Some(&curr), 10.0) { break; } } } } }
+    if r { if let Some(orig) = o { let curr = c.zone_name().unwrap_or_default(); if orig != curr { loop { c.send_key(Keycode::PageUp).ok(); if wait_for_zone_change(c, Some(&curr), 10.0) { break; } } } } }
 }
 
 async fn refill_potions(c: &Client, m: bool, r: bool) {
     if let Some(s) = c.stats() { if s.reference_level().unwrap_or(1) >= 6 {
-        let orig = c.zone_name().ok(); if m && orig.as_deref() != Some("WizardCity/WC_Hub") { c.send_key(Keycode::PageDown, 0.1).await.ok(); tokio::time::sleep(tokio::time::Duration::from_secs(2)).await; }
-        c.send_key(Keycode::Home, 0.1).await.ok(); wait_for_zone_change(c, orig.as_deref(), 10.0); buy_potions_logic(c, r, orig).await;
+        let orig = c.zone_name().ok(); if m && orig.as_deref() != Some("WizardCity/WC_Hub") { c.send_key(Keycode::PageDown).ok(); tokio::time::sleep(tokio::time::Duration::from_secs(2)).await; }
+        c.send_key(Keycode::Home).ok(); wait_for_zone_change(c, orig.as_deref(), 10.0); buy_potions_logic(c, r, orig).await;
     } }
 }
 
 async fn logout_and_in(c: &Client) {
-    c.send_key(Keycode::Esc, 0.1).await.ok();
+    c.send_key(Keycode::Esc).ok();
     while !is_visible_by_path(c, paths::QUIT_BUTTON) { tokio::time::sleep(tokio::time::Duration::from_millis(100)).await; }
     click_window_by_path(c, paths::QUIT_BUTTON).await; tokio::time::sleep(tokio::time::Duration::from_millis(250)).await;
-    if is_visible_by_path(c, paths::DUNGEON_WARNING) { c.send_key(Keycode::Enter, 0.1).await.ok(); }
+    if is_visible_by_path(c, paths::DUNGEON_WARNING) { c.send_key(Keycode::Enter).ok(); }
     while !is_visible_by_path(c, paths::PLAY_BUTTON) { tokio::time::sleep(tokio::time::Duration::from_millis(100)).await; }
     click_window_by_path(c, paths::PLAY_BUTTON).await; tokio::time::sleep(tokio::time::Duration::from_secs(4)).await;
     if c.is_loading() { wait_for_loading_screen(c, 60.0); }
 }
 
 async fn teleport_to_friend_from_list(c: &Client, n: Option<String>, il: Option<i32>) {
-    c.send_key(Keycode::F, 0.1).await.ok(); tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
-    if let Some(root) = c.root_window() {
+    c.send_key(Keycode::F).ok(); tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
+    if let Some(root) = c.root_window {
         if let Some(btn) = get_window_from_path(&root.window, &["NewFriendsListWindow", "listFriends", "Friend0"]) {
-            c.mouse_handler().click_window(&btn, false).await.ok(); tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
-            if let Some(tp) = get_window_from_path(&root.window, &["wndCharacter", "ButtonLayout", "btnTeleport"]) { c.mouse_handler().click_window(&tp, false).await.ok(); }
+            c.mouse_handler.click_window(&btn, false).await.ok(); tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
+            if let Some(tp) = get_window_from_path(&root.window, &["wndCharacter", "ButtonLayout", "btnTeleport"]) { c.mouse_handler.click_window(&tp, false).await.ok(); }
         }
     }
 }
@@ -202,7 +202,7 @@ pub async fn parse_command(clients: Vec<Client>, command_str: &str) -> Result<()
         "log" | "debug" | "print" => {
             if split.len() >= 3 && split[1].as_str().to_lowercase() == "window" && split[2].is_list() {
                 let p_vec = split[2].as_list(); let path: Vec<&str> = p_vec.iter().map(|s| s.as_str()).collect();
-                for c in &clients { if let Some(root) = c.root_window() { if let Some(w) = get_window_from_path(&root.window, &path) { debug!("{} - {}", c.title(), w.maybe_text().unwrap_or_default()); } } }
+                for c in &clients { if let Some(root) = c.root_window { if let Some(w) = get_window_from_path(&root.window, &path) { debug!("{} - {}", c.title(), w.maybe_text().unwrap_or_default()); } } }
             } else { debug!("{}", split[1..].iter().map(|t| t.as_str()).collect::<Vec<_>>().join(" ")); }
         }
         _ => {
@@ -277,7 +277,7 @@ pub async fn parse_command(clients: Vec<Client>, command_str: &str) -> Result<()
                     else { join_all(clients.iter().map(|c| refill_potions(c, true, true))).await; }
                 }
                 "logoutandin" | "relog" => { join_all(clients.iter().map(|c| logout_and_in(c))).await; }
-                "click" => { join_all(clients.iter().map(|c| async move { let x = split[2].as_str().parse::<i32>().unwrap_or(0); let y = split[3].as_str().parse::<i32>().unwrap_or(0); c.mouse_handler().click(x, y).await.ok(); })).await; }
+                "click" => { join_all(clients.iter().map(|c| async move { let x = split[2].as_str().parse::<i32>().unwrap_or(0); let y = split[3].as_str().parse::<i32>().unwrap_or(0); c.mouse_handler.click(x, y).await.ok(); })).await; }
                 "clickwindow" => { if split.len() >= 3 && split[2].is_list() { let p_v = split[2].as_list(); let p: Vec<&str> = p_v.iter().map(|s| s.as_str()).collect(); join_all(clients.iter().map(|c| async move { click_window_by_path(c, &p).await; })).await; } }
                 "waitforwindow" | "waitforpath" => {
                     if split.len() >= 3 && split[2].is_list() {

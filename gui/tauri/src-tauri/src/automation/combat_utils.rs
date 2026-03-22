@@ -4,7 +4,7 @@
 #![allow(dead_code, unused_imports)]
 
 use std::collections::HashMap;
-use wizwalker::combat::CombatMember;
+use wizwalker::combat::member::CombatMember;
 use wizwalker::memory::objects::game_stats::DynamicGameStats;
 use super::combat_objects::{SCHOOL_IDS, SCHOOL_NAMES, school_to_str};
 use super::utils::index_with_str;

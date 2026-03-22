@@ -4,7 +4,8 @@
 #![allow(dead_code, unused_imports)]
 
 use std::collections::HashMap;
-use wizwalker::combat::{CombatMember, CombatCard};
+use wizwalker::combat::member::CombatMember;
+use wizwalker::combat::card::CombatCard;
 use wizwalker::memory::objects::spell_effect::DynamicSpellEffect;
 use wizwalker::memory::objects::game_stats::DynamicGameStats;
 

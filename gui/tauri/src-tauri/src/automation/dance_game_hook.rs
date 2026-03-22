@@ -14,10 +14,10 @@ pub async fn attempt_activate_dance_hook(client: &Client) {
         match client.hook_handler.activate_hook(HookType::DanceGameMoves).await {
             Ok(_) => {
                 client.dance_hook_status.store(true, std::sync::atomic::Ordering::Relaxed);
-                debug!("Dance hook activated for client {}", client.title);
+                debug!("Dance hook activated for client {}", client.title());
             }
             Err(e) => {
-                debug!("Failed to activate dance hook for client {}: {}", client.title, e);
+                debug!("Failed to activate dance hook for client {}: {}", client.title(), e);
             }
         }
     }
@@ -29,10 +29,10 @@ pub async fn attempt_deactivate_dance_hook(client: &Client) {
         match client.hook_handler.deactivate_hook(HookType::DanceGameMoves).await {
             Ok(_) => {
                 client.dance_hook_status.store(false, std::sync::atomic::Ordering::Relaxed);
-                debug!("Dance hook deactivated for client {}", client.title);
+                debug!("Dance hook deactivated for client {}", client.title());
             }
             Err(e) => {
-                debug!("Failed to deactivate dance hook for client {}: {}", client.title, e);
+                debug!("Failed to deactivate dance hook for client {}: {}", client.title(), e);
             }
         }
     }

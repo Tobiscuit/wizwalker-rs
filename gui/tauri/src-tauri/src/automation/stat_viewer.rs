@@ -5,7 +5,8 @@
 
 use std::collections::HashMap;
 use wizwalker::client::Client;
-use wizwalker::combat::{CombatHandler, CombatMember};
+use wizwalker::combat::handler::CombatHandler;
+use wizwalker::combat::member::CombatMember;
 use super::combat_objects::{school_to_str, school_list_index};
 use super::combat_utils::{add_universal_stat, to_percent, to_separated_str_stats, dict_to_str, STAT_DISPLAY_BLACKLIST, enemy_type_str, get_str_masteries};
 use super::combat_math::base_damage_calculation;

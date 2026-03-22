@@ -331,7 +331,7 @@ impl VM {
         if let Some(quest) = quest_data.get(&(tracked_id as i32)) {
             Ok(QuestData::new(quest.inner.clone()))
         } else {
-            Err(format!("Unable to fetch the currently tracked quest for client with title {}", client.title))
+            Err(format!("Unable to fetch the currently tracked quest for client with title {}", client.title()))
         }
     }
 
@@ -1484,7 +1484,7 @@ impl VM {
             }
             "usepotion" => {
                  for &i in &indices {
-                      let _ = self.clients[i].mouse_handler.use_potion_if_needed(0, 0).await;
+                      let _ = self.clients[i].mouse_handler.use_potion_if_needed(0).await;
                  }
             }
             "buypotions" => {

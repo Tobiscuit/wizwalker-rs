@@ -7,7 +7,7 @@ use super::combat_objects::{school_list_index, UNIVERSAL_SCHOOL_ID};
 use super::combat_utils::add_universal_stat;
 use wizwalker::types::XYZ;
 use wizwalker::client::Client;
-use wizwalker::combat::CombatMember;
+use wizwalker::combat::member::CombatMember;
 use wizwalker::memory::objects::spell_effect::{DynamicSpellEffect, SpellEffects};
 
 // ── Effect attributes cache ─────────────────────────────────────────
