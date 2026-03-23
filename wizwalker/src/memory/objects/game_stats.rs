@@ -987,6 +987,7 @@ impl CurrentGameStats {
     }
 }
 
+#[derive(Clone)]
 pub struct DynamicGameStats {
     pub inner: DynamicMemoryObject,
 }

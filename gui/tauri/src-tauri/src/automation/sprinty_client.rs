@@ -188,16 +188,16 @@ impl<'a> SprintyClient<'a> {
     }
 
     pub fn calc_health_ratio(&self) -> f32 {
-        let stats = self.client.game_stats.as_ref();
-        let current = stats.and_then(|s| s.current_hitpoints().ok()).unwrap_or(0) as f32;
-        let max = stats.and_then(|s| s.base_hitpoints().ok()).unwrap_or(1) as f32;
+        let stats = self.client.stats();
+        let current = stats.as_ref().and_then(|s| s.current_hitpoints().ok()).unwrap_or(0) as f32;
+        let max = stats.as_ref().and_then(|s| s.base_hitpoints().ok()).unwrap_or(1) as f32;
         current / max
     }
 
     pub fn calc_mana_ratio(&self) -> f32 {
-        let stats = self.client.game_stats.as_ref();
-        let current = stats.and_then(|s| s.current_mana().ok()).unwrap_or(0) as f32;
-        let max = stats.and_then(|s| s.base_mana().ok()).unwrap_or(1) as f32;
+        let stats = self.client.stats();
+        let current = stats.as_ref().and_then(|s| s.current_mana().ok()).unwrap_or(0) as f32;
+        let max = stats.as_ref().and_then(|s| s.base_mana().ok()).unwrap_or(1) as f32;
         current / max
     }
 

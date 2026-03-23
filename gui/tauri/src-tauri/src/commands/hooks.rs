@@ -9,7 +9,7 @@ use tauri::State;
 
 use crate::state::{CommandResult, WizState};
 
-use wizwalker::memory::reader::MemoryReaderExt;
+use wizwalker::memory::reader::{MemoryReader, MemoryReaderExt};
 
 /// Get the current state of all toggles.
 #[tauri::command]
@@ -46,19 +46,28 @@ pub fn toggle_hook(
             };
             for (_label, client_arc) in &wiz.clients {
                 if let Ok(client) = client_arc.try_lock() {
-                    // Step 1: Get GameClient base from ClientHook
-                    if let Ok(client_base) = client.hook_handler.read_current_client_base() {
-                        if let Some(reader) = client.process_reader() {
-                            // Step 2: Dereference GameClient + 0x21318 → root_client_object (CoreObject*)
-                            let client_obj_ptr: u64 = reader.read_typed(client_base + 0x21318).unwrap_or(0);
+                    if let Some(game_client) = client.game_client() {
+                        let gc_base = game_client.read_base_address().unwrap_or(0);
+                        if gc_base != 0 {
+                            let arc_reader = client.hook_handler.reader().unwrap().as_ref();
+                            let client_obj_ptr_bytes = arc_reader.read_bytes((gc_base + 0x21318) as usize, 8)
+                                .unwrap_or(vec![0; 8]);
+                            let mut ptr_arr = [0u8; 8];
+                            ptr_arr.copy_from_slice(&client_obj_ptr_bytes[..8]);
+                            let client_obj_ptr = u64::from_ne_bytes(ptr_arr);
+                            
                             if client_obj_ptr != 0 {
-                                // Step 3: Write speed_multiplier at CoreObject + 192
-                                let _ = reader.write_typed::<i16>(client_obj_ptr as usize + 192, &speed_val);
-                                eprintln!("[arcane] Speedhack: wrote speed={} to client_object 0x{:X}+192 (via GameClient 0x{:X}+0x21318)",
-                                    speed_val, client_obj_ptr, client_base);
+                                // Dynamic CoreObject speed property
+                                let _ = arc_reader.write_typed(
+                                    (client_obj_ptr + 0x190) as usize, // CoreObject offset
+                                    &speed_val
+                                );
+                                tracing::info!("[arcane] Speedhack: wrote speed={} via raw bypass", speed_val);
                             } else {
-                                eprintln!("[arcane] Speedhack: root_client_object is null at GameClient 0x{:X}+0x21318", client_base);
+                                tracing::warn!("[arcane] Speedhack: null client object pointer");
                             }
+                        } else {
+                            tracing::warn!("[arcane] Speedhack: null gc base");
                         }
                     }
                 }

@@ -11,6 +11,11 @@ use windows::Win32::Foundation::POINT;
 use crate::errors::Result;
 use crate::memory::objects::window::DynamicWindow;
 
+#[derive(Clone, Copy)]
+struct SendableHWND(HWND);
+unsafe impl Send for SendableHWND {}
+unsafe impl Sync for SendableHWND {}
+
 /// Handles mouse input to the Wizard101 game window.
 ///
 /// Uses `SendMessage`/`PostMessage` to simulate mouse clicks at coordinates
@@ -18,7 +23,7 @@ use crate::memory::objects::window::DynamicWindow;
 /// or screen-space.
 #[derive(Clone)]
 pub struct MouseHandler {
-    window_handle: HWND,
+    window_handle: SendableHWND,
     click_lock: Arc<Mutex<()>>,
     click_predelay: Duration,
 }
@@ -26,7 +31,7 @@ pub struct MouseHandler {
 impl MouseHandler {
     pub fn new(window_handle: HWND) -> Self {
         Self {
-            window_handle,
+            window_handle: SendableHWND(window_handle),
             click_lock: Arc::new(Mutex::new(())),
             click_predelay: Duration::from_secs_f64(0.02),
         }
@@ -78,13 +83,13 @@ impl MouseHandler {
             (WM_LBUTTONDOWN, WM_LBUTTONUP)
         };
 
-        let handle = self.window_handle;
         let _guard = self.click_lock.lock().await;
 
         self.set_mouse_position(x, y, true, false).await?;
         sleep(self.click_predelay).await;
 
         unsafe {
+            let handle = self.window_handle.0;
             if use_post {
                 let _ = PostMessageW(Some(handle), button_down, WPARAM(1), LPARAM(0));
             } else {
@@ -97,6 +102,7 @@ impl MouseHandler {
         }
 
         unsafe {
+            let handle = self.window_handle.0;
             if use_post {
                 let _ = PostMessageW(Some(handle), button_up, WPARAM(0), LPARAM(0));
             } else {
@@ -118,7 +124,7 @@ impl MouseHandler {
         convert_from_client: bool,
         use_post: bool,
     ) -> Result<()> {
-        let handle = self.window_handle;
+        let handle = self.window_handle.0;
 
         if convert_from_client {
             let mut point = POINT { x, y };

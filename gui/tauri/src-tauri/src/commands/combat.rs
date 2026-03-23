@@ -64,7 +64,7 @@ pub fn get_stats(
 
     let client = client_arc.blocking_lock();
 
-    if let Some(game_stats) = &client.game_stats {
+    if let Some(game_stats) = client.stats() {
         return Ok(PlayerStats {
             max_health: game_stats.max_hitpoints().unwrap_or(0),
             max_mana: game_stats.max_mana().unwrap_or(0),

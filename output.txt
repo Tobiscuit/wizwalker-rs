@@ -1,0 +1,179 @@
+warning: variable does not need to be mutable
+   --> wizwalker\src\memory\hooks.rs:569:13
+    |
+569 |         let mut packed_should_update = packed_export;
+    |             ----^^^^^^^^^^^^^^^^^^^^
+    |             |
+    |             help: remove this `mut`
+    |
+    = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused variable: `packed_should_update`
+   --> wizwalker\src\memory\hooks.rs:569:13
+    |
+569 |         let mut packed_should_update = packed_export;
+    |             ^^^^^^^^^^^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_packed_should_update`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: associated constant `GC_SELECTED_CAMERA` is never used
+   --> wizwalker\src\client.rs:973:11
+    |
+ 83 | impl Client {
+    | ----------- associated constant in this implementation
+...
+973 |     const GC_SELECTED_CAMERA: usize = 0x22290;
+    |           ^^^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: associated constant `GETCLASSINFOEX_PATTERN` is never used
+   --> wizwalker\src\memory\hooks.rs:730:11
+    |
+725 | impl MouselessCursorMoveHook {
+    | ---------------------------- associated constant in this implementation
+...
+730 |     const GETCLASSINFOEX_PATTERN: &[u8] = &[
+    |           ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: `wizwalker` (lib) generated 4 warnings (run `cargo fix --lib -p wizwalker` to apply 2 suggestions)
+    Checking wizwalker-gui v0.1.0 (C:\dev\wizwalker-rs\gui\tauri\src-tauri)
+warning: unused import: `wizwalker::memory::reader::MemoryReaderExt`
+  --> gui\tauri\src-tauri\src\commands\hooks.rs:12:5
+   |
+12 | use wizwalker::memory::reader::MemoryReaderExt;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused imports: `debug` and `info`
+ --> gui\tauri\src-tauri\src\automation\sigil.rs:8:15
+  |
+8 | use tracing::{debug, info};
+  |               ^^^^^  ^^^^
+
+warning: unused import: `error`
+ --> gui\tauri\src-tauri\src\automation\dance_game_hook.rs:7:22
+  |
+7 | use tracing::{debug, error};
+  |                      ^^^^^
+
+warning: unused import: `wizwalker::memory::hooks::HookType`
+  --> gui\tauri\src-tauri\src\automation\dance_game_hook.rs:10:5
+   |
+10 | use wizwalker::memory::hooks::HookType;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `std::fmt`
+ --> gui\tauri\src-tauri\src\deimoslang\types.rs:6:5
+  |
+6 | use std::fmt;
+  |     ^^^^^^^^
+
+warning: unused import: `TokenKind`
+ --> gui\tauri\src-tauri\src\deimoslang\types.rs:7:43
+  |
+7 | use crate::deimoslang::tokenizer::{Token, TokenKind};
+  |                                           ^^^^^^^^^
+
+warning: variable does not need to be mutable
+   --> gui\tauri\src-tauri\src\automation\questing.rs:145:13
+    |
+145 |         let mut clients_in_solo_zone = Vec::new();
+    |             ----^^^^^^^^^^^^^^^^^^^^
+    |             |
+    |             help: remove this `mut`
+    |
+    = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
+
+error[E0599]: no method named `write_speed_multiplier` found for struct `ClientObject<R>` in the current scope
+  --> gui\tauri\src-tauri\src\commands\hooks.rs:51:48
+   |
+51 | ...                   let _ = client_obj.write_speed_multiplier(speed_val);
+   |                                          ^^^^^^^^^^^^^^^^^^^^^^ method not found in `ClientObject<ProcessMemoryReader>`
+   |
+help: one of the expressions' fields has a method of the same name
+   |
+51 |                             let _ = client_obj.base.write_speed_multiplier(speed_val);
+   |                                                +++++
+
+error[E0599]: no method named `speed_multiplier` found for struct `ClientObject<R>` in the current scope
+   --> gui\tauri\src-tauri\src\events.rs:195:65
+    |
+195 | ...                   if let Ok(current) = client_obj.speed_multiplier() {
+    |                                                       ^^^^^^^^^^^^^^^^ method not found in `ClientObject<ProcessMemoryReader>`
+    |
+help: one of the expressions' fields has a method of the same name
+    |
+195 |                                 if let Ok(current) = client_obj.base.speed_multiplier() {
+    |                                                                 +++++
+
+error[E0599]: no method named `write_speed_multiplier` found for struct `ClientObject<R>` in the current scope
+   --> gui\tauri\src-tauri\src\events.rs:197:60
+    |
+197 | ...                   let _ = client_obj.write_speed_multiplier(target_speed);
+    |                                          ^^^^^^^^^^^^^^^^^^^^^^ method not found in `ClientObject<ProcessMemoryReader>`
+    |
+help: one of the expressions' fields has a method of the same name
+    |
+197 |                                         let _ = client_obj.base.write_speed_multiplier(target_speed);
+    |                                                            +++++
+
+warning: unused variable: `icon_list`
+   --> gui\tauri\src-tauri\src\automation\utils.rs:893:5
+    |
+893 |     icon_list: Option<i32>,
+    |     ^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_icon_list`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused variable: `icon_index`
+   --> gui\tauri\src-tauri\src\automation\utils.rs:894:5
+    |
+894 |     icon_index: Option<i32>,
+    |     ^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_icon_index`
+
+warning: variable does not need to be mutable
+  --> gui\tauri\src-tauri\src\automation\drop_logger.rs:51:25
+   |
+51 |                     let mut drop = DROP_REGEX_4.find(raw_drop).map(|m| m.as_str()).unwrap_or("");
+   |                         ----^^^^
+   |                         |
+   |                         help: remove this `mut`
+
+warning: variable does not need to be mutable
+  --> gui\tauri\src-tauri\src\automation\drop_logger.rs:56:21
+   |
+56 |                 let mut drop = DROP_REGEX_COLON.find(&raw_i).map(|m| m.as_str()).unwrap_or("");
+   |                     ----^^^^
+   |                     |
+   |                     help: remove this `mut`
+
+warning: value assigned to `t` is never read
+   --> gui\tauri\src-tauri\src\automation\command_parser.rs:261:108
+    |
+261 | ...et mut t = 0.1; if split.len() >= 4 { t = split[3].as_str().parse::<f64>().unwrap_or(0.1); }
+    |                                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = help: maybe it is overwritten before being read?
+    = note: `#[warn(unused_assignments)]` (part of `#[warn(unused)]`) on by default
+
+warning: value assigned to `is_valid` is never read
+   --> gui\tauri\src-tauri\src\automation\effect_simulation.rs:587:17
+    |
+587 |                 is_valid = true;
+    |                 ^^^^^^^^^^^^^^^
+    |
+    = help: maybe it is overwritten before being read?
+
+warning: value assigned to `caster_total_spips` is never read
+   --> gui\tauri\src-tauri\src\automation\effect_simulation.rs:741:9
+    |
+741 |         caster_total_spips += caster_pips_cache[format!("{}_pips", s)].as_i64().unwrap_or(0);
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = help: maybe it is overwritten before being read?
+
+For more information about this error, try `rustc --explain E0599`.
+warning: `wizwalker-gui` (lib) generated 14 warnings
+error: could not compile `wizwalker-gui` (lib) due to 3 previous errors; 14 warnings emitted

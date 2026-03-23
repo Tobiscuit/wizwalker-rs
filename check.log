@@ -1,0 +1,218 @@
+warning: unused import: `crate::memory::objects::game_stats::DynamicGameStats`
+  --> wizwalker\src\client.rs:13:5
+   |
+13 | use crate::memory::objects::game_stats::DynamicGameStats;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: variable does not need to be mutable
+   --> wizwalker\src\memory\hooks.rs:569:13
+    |
+569 |         let mut packed_should_update = packed_export;
+    |             ----^^^^^^^^^^^^^^^^^^^^
+    |             |
+    |             help: remove this `mut`
+    |
+    = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused variable: `packed_should_update`
+   --> wizwalker\src\memory\hooks.rs:569:13
+    |
+569 |         let mut packed_should_update = packed_export;
+    |             ^^^^^^^^^^^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_packed_should_update`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: associated constant `GC_SELECTED_CAMERA` is never used
+   --> wizwalker\src\client.rs:970:11
+    |
+ 75 | impl Client {
+    | ----------- associated constant in this implementation
+...
+970 |     const GC_SELECTED_CAMERA: usize = 0x22290;
+    |           ^^^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: associated constant `GETCLASSINFOEX_PATTERN` is never used
+   --> wizwalker\src\memory\hooks.rs:730:11
+    |
+725 | impl MouselessCursorMoveHook {
+    | ---------------------------- associated constant in this implementation
+...
+730 |     const GETCLASSINFOEX_PATTERN: &[u8] = &[
+    |           ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: `wizwalker` (lib) generated 5 warnings (run `cargo fix --lib -p wizwalker` to apply 3 suggestions)
+    Checking wizwalker-gui v0.1.0 (C:\dev\wizwalker-rs\gui\tauri\src-tauri)
+gui\tauri\src-tauri\src\automation\sigil.rs:8:15: warning: unused imports: `debug` and `info`
+gui\tauri\src-tauri\src\automation\dance_game_hook.rs:7:22: warning: unused import: `error`
+gui\tauri\src-tauri\src\automation\dance_game_hook.rs:10:5: warning: unused import: `wizwalker::memory::hooks::HookType`
+gui\tauri\src-tauri\src\deimoslang\types.rs:6:5: warning: unused import: `std::fmt`
+gui\tauri\src-tauri\src\deimoslang\types.rs:7:43: warning: unused import: `TokenKind`
+gui\tauri\src-tauri\src\automation\questing.rs:145:13: warning: variable does not need to be mutable
+gui\tauri\src-tauri\src\automation\utils.rs:898:5: warning: unused variable: `icon_list`: help: if this is intentional, prefix it with an underscore: `_icon_list`
+gui\tauri\src-tauri\src\automation\utils.rs:899:5: warning: unused variable: `icon_index`: help: if this is intentional, prefix it with an underscore: `_icon_index`
+gui\tauri\src-tauri\src\automation\drop_logger.rs:52:25: warning: variable does not need to be mutable
+gui\tauri\src-tauri\src\automation\drop_logger.rs:57:21: warning: variable does not need to be mutable
+gui\tauri\src-tauri\src\automation\command_parser.rs:261:108: warning: value assigned to `t` is never read
+gui\tauri\src-tauri\src\automation\effect_simulation.rs:587:17: warning: value assigned to `is_valid` is never read
+gui\tauri\src-tauri\src\automation\effect_simulation.rs:741:9: warning: value assigned to `caster_total_spips` is never read
+gui\tauri\src-tauri\src\deimoslang\sem.rs:134:5: warning: type `MixinKey` is more private than the item `Analyzer::mixin_cache`: field `Analyzer::mixin_cache` is reachable at visibility `pub(crate)`
+gui\tauri\src-tauri\src\state.rs:23:5: warning: variant `Internal` is never constructed
+gui\tauri\src-tauri\src\automation\paths.rs:8:11: warning: constant `SPIRAL_DOOR_RESET_PATH` is never used
+gui\tauri\src-tauri\src\automation\paths.rs:9:11: warning: constant `SPIRAL_DOOR_CYCLE_PATH` is never used
+gui\tauri\src-tauri\src\automation\paths.rs:11:11: warning: constant `SPIRAL_DOOR_WORLD_PATH` is never used
+gui\tauri\src-tauri\src\automation\paths.rs:12:11: warning: constant `SPIRAL_DOOR_SELECTED_PATH` is never used
+gui\tauri\src-tauri\src\automation\paths.rs:15:11: warning: constant `SPIRAL_DOOR_EXIT_PATH` is never used
+gui\tauri\src-tauri\src\automation\paths.rs:27:11: warning: constant `CHECK_SPELLBOOK_OPEN_PATH` is never used
+gui\tauri\src-tauri\src\automation\paths.rs:32:11: warning: constant `CLOSE_SPELLBOOK_PATH` is never used
+gui\tauri\src-tauri\src\automation\paths.rs:42:11: warning: constant `DECLINE_QUEST_PATH` is never used
+gui\tauri\src-tauri\src\automation\paths.rs:55:11: warning: constant `TEAM_UP_BUTTON_PATH` is never used
+gui\tauri\src-tauri\src\automation\paths.rs:56:11: warning: constant `TEAM_UP_CONFIRM_PATH` is never used
+gui\tauri\src-tauri\src\automation\paths.rs:68:11: warning: constant `MISSING_AREA_PATH` is never used
+gui\tauri\src-tauri\src\automation\paths.rs:69:11: warning: constant `MISSING_AREA_RETRY_PATH` is never used
+gui\tauri\src-tauri\src\automation\paths.rs:73:11: warning: constant `WILLCAST_PATH` is never used
+gui\tauri\src-tauri\src\automation\paths.rs:89:11: warning: constant `RESUME_INSTANCE_PATH` is never used
+gui\tauri\src-tauri\src\automation\paths.rs:109:11: warning: constant `MAIN_CHAT_CHANNEL_PATH` is never used
+gui\tauri\src-tauri\src\automation\paths.rs:110:11: warning: constant `GROUP_CHAT_CHANNEL_PATH` is never used
+gui\tauri\src-tauri\src\automation\paths.rs:111:11: warning: constant `HOUSE_CHAT_CHANNEL_PATH` is never used
+gui\tauri\src-tauri\src\automation\paths.rs:112:11: warning: constant `FRIEND_CHAT_CHANNEL_PATH` is never used
+gui\tauri\src-tauri\src\automation\paths.rs:113:11: warning: constant `CHANNEL_ONE_CHAT_CHANNEL_PATH` is never used
+gui\tauri\src-tauri\src\automation\paths.rs:114:11: warning: constant `CHANNEL_TWO_CHAT_CHANNEL_PATH` is never used
+gui\tauri\src-tauri\src\automation\paths.rs:115:11: warning: constant `CHANNEL_THREE_CHAT_CHANNEL_PATH` is never used
+gui\tauri\src-tauri\src\automation\paths.rs:116:11: warning: constant `GUILD_CHAT_CHANNEL_PATH` is never used
+gui\tauri\src-tauri\src\automation\paths.rs:117:11: warning: constant `TEAM_UP_CHAT_CHANNEL_PATH` is never used
+gui\tauri\src-tauri\src\automation\paths.rs:129:11: warning: constant `ADD_REMOVE_FRIEND_PATH` is never used
+gui\tauri\src-tauri\src\automation\paths.rs:130:11: warning: constant `CONFIRM_SEND_FRIEND_REQUEST_PATH` is never used
+gui\tauri\src-tauri\src\automation\paths.rs:131:11: warning: constant `CONFIRM_ACCEPT_FRIEND_REQUEST_PATH` is never used
+gui\tauri\src-tauri\src\automation\paths.rs:132:11: warning: constant `ENTER_TRUE_FRIEND_CODE_BUTTON_PATH` is never used
+gui\tauri\src-tauri\src\automation\paths.rs:133:11: warning: constant `TRUE_FRIEND_WINDOW_PATH` is never used
+gui\tauri\src-tauri\src\automation\paths.rs:134:11: warning: constant `GENERATE_TRUE_FRIEND_CODE_PATH` is never used
+gui\tauri\src-tauri\src\automation\paths.rs:135:11: warning: constant `CONFIRM_TRUE_FRIEND_CODE_PATH` is never used
+gui\tauri\src-tauri\src\automation\paths.rs:136:11: warning: constant `EXIT_TRUE_FRIEND_WINDOW_PATH` is never used
+gui\tauri\src-tauri\src\automation\paths.rs:137:11: warning: constant `EXIT_GENERATE_TRUE_FRIEND_WINDOW_PATH` is never used
+gui\tauri\src-tauri\src\automation\paths.rs:138:11: warning: constant `TRUE_FRIEND_CODE_TEXT_PATH` is never used
+gui\tauri\src-tauri\src\automation\paths.rs:139:11: warning: constant `CLOSE_REAL_FRIEND_LIST_BUTTON_PATH` is never used
+gui\tauri\src-tauri\src\automation\paths.rs:143:11: warning: constant `TELEPORT_MARK_RECALL_PATH` is never used
+gui\tauri\src-tauri\src\automation\paths.rs:144:11: warning: constant `TELEPORT_MARK_RECALL_TIMER_PATH` is never used
+gui\tauri\src-tauri\src\automation\paths.rs:152:11: warning: constant `OPEN_CANTRIPS_PATH` is never used
+gui\tauri\src-tauri\src\automation\paths.rs:164:11: warning: constant `BACKPACK_IS_VISIBLE_PATH` is never used
+gui\tauri\src-tauri\src\automation\paths.rs:165:11: warning: constant `EQUIPMENT_SET_MANAGER_TITLE_PATH` is never used
+gui\tauri\src-tauri\src\automation\paths.rs:166:11: warning: constant `INDIVIDUAL_EQUIPMENT_SET_PARENT_PATH` is never used
+gui\tauri\src-tauri\src\automation\paths.rs:167:11: warning: constant `BACKPACK_TITLE_PATH` is never used
+gui\tauri\src-tauri\src\automation\paths.rs:190:11: warning: constant `WON_PET_GAME_PLAY_AGAIN_BUTTON_PATH` is never used
+gui\tauri\src-tauri\src\automation\paths.rs:193:11: warning: constant `SKIPPED_PET_GAME_PLAY_AGAIN_BUTTON_PATH` is never used
+gui\tauri\src-tauri\src\automation\paths.rs:198:11: warning: constant `WON_PET_LEVELED_UP_ANNOUNCEMENT_TXT_PATH` is never used
+gui\tauri\src-tauri\src\automation\paths.rs:199:11: warning: constant `SKIPPED_PET_LEVELED_UP_ANNOUNCEMENT_TXT_PATH` is never used
+gui\tauri\src-tauri\src\automation\paths.rs:200:11: warning: constant `WON_PET_LEVELED_UP_TALENT_TXT_PATH` is never used
+gui\tauri\src-tauri\src\automation\paths.rs:201:11: warning: constant `SKIPPED_PET_LEVELED_UP_TALENT_TXT_PATH` is never used
+gui\tauri\src-tauri\src\automation\paths.rs:208:11: warning: constant `ENERGY_AMOUNT_PATH` is never used
+gui\tauri\src-tauri\src\automation\paths.rs:212:11: warning: constant `QUEST_BUTTONS_PARENT_PATH` is never used
+gui\tauri\src-tauri\src\automation\paths.rs:213:11: warning: constant `QUEST_TWO_BUTTON_PATH` is never used
+gui\tauri\src-tauri\src\automation\paths.rs:214:11: warning: constant `ALL_QUESTS_SORT_BUTTON_PATH` is never used
+gui\tauri\src-tauri\src\automation\paths.rs:218:11: warning: constant `SPIRAL_DOOR_RESET` is never used
+gui\tauri\src-tauri\src\automation\paths.rs:219:11: warning: constant `SPIRAL_DOOR_CYCLE` is never used
+gui\tauri\src-tauri\src\automation\paths.rs:220:11: warning: constant `SPIRAL_DOOR_TELEPORT` is never used
+gui\tauri\src-tauri\src\automation\paths.rs:221:11: warning: constant `SPIRAL_DOOR_WORLD` is never used
+gui\tauri\src-tauri\src\automation\paths.rs:222:11: warning: constant `SPIRAL_DOOR_SELECTED` is never used
+gui\tauri\src-tauri\src\automation\paths.rs:223:11: warning: constant `SPIRAL_DOOR` is never used
+gui\tauri\src-tauri\src\automation\paths.rs:224:11: warning: constant `SPIRAL_DOOR_TITLE` is never used
+gui\tauri\src-tauri\src\automation\paths.rs:225:11: warning: constant `SPIRAL_DOOR_EXIT` is never used
+gui\tauri\src-tauri\src\automation\paths.rs:229:11: warning: constant `POTION_EXIT` is never used
+gui\tauri\src-tauri\src\automation\paths.rs:230:11: warning: constant `POTION_USAGE` is never used
+gui\tauri\src-tauri\src\automation\paths.rs:231:11: warning: constant `CHECK_SPELLBOOK_OPEN` is never used
+gui\tauri\src-tauri\src\automation\paths.rs:233:11: warning: constant `CLOSE_SPELLBOOK` is never used
+gui\tauri\src-tauri\src\automation\paths.rs:237:11: warning: constant `DECLINE_QUEST` is never used
+gui\tauri\src-tauri\src\automation\paths.rs:238:11: warning: constant `DIALOG_TEXT` is never used
+gui\tauri\src-tauri\src\automation\paths.rs:239:11: warning: constant `QUEST_NAME` is never used
+gui\tauri\src-tauri\src\automation\paths.rs:240:11: warning: constant `POPUP_TITLE` is never used
+gui\tauri\src-tauri\src\automation\paths.rs:241:11: warning: constant `POPUP_MSGTEXT` is never used
+gui\tauri\src-tauri\src\automation\paths.rs:242:11: warning: constant `TEAM_UP_BUTTON` is never used
+gui\tauri\src-tauri\src\automation\paths.rs:243:11: warning: constant `TEAM_UP_CONFIRM` is never used
+gui\tauri\src-tauri\src\automation\paths.rs:244:11: warning: constant `NPC_RANGE` is never used
+gui\tauri\src-tauri\src\automation\paths.rs:245:11: warning: constant `CANCEL_CHEST_ROLL` is never used
+gui\tauri\src-tauri\src\automation\paths.rs:246:11: warning: constant `MISSING_AREA` is never used
+gui\tauri\src-tauri\src\automation\paths.rs:247:11: warning: constant `MISSING_AREA_RETRY` is never used
+gui\tauri\src-tauri\src\automation\paths.rs:248:11: warning: constant `WILLCAST` is never used
+gui\tauri\src-tauri\src\automation\paths.rs:249:11: warning: constant `EXIT_RECIPE_SHOP` is never used
+gui\tauri\src-tauri\src\automation\paths.rs:250:11: warning: constant `EXIT_EQUIPMENT_SHOP` is never used
+gui\tauri\src-tauri\src\automation\paths.rs:251:11: warning: constant `EXIT_SNACK_SHOP` is never used
+gui\tauri\src-tauri\src\automation\paths.rs:252:11: warning: constant `EXIT_REAGENT_SHOP` is never used
+gui\tauri\src-tauri\src\automation\paths.rs:253:11: warning: constant `EXIT_TC_VENDOR` is never used
+gui\tauri\src-tauri\src\automation\paths.rs:254:11: warning: constant `EXIT_MINIGAME_SIGIL` is never used
+gui\tauri\src-tauri\src\automation\paths.rs:255:11: warning: constant `CANCEL_MULTIPLE_QUEST_MENU` is never used
+gui\tauri\src-tauri\src\automation\paths.rs:256:11: warning: constant `CANCEL_SPELL_VENDOR` is never used
+gui\tauri\src-tauri\src\automation\paths.rs:257:11: warning: constant `RESUME_INSTANCE` is never used
+gui\tauri\src-tauri\src\automation\paths.rs:258:11: warning: constant `EXIT_DUNGEON` is never used
+gui\tauri\src-tauri\src\automation\paths.rs:259:11: warning: constant `FRIEND_IS_BUSY_AND_DUNGEON_RESET` is never used
+gui\tauri\src-tauri\src\automation\paths.rs:260:11: warning: constant `ADD_REMOVE_FRIEND` is never used
+gui\tauri\src-tauri\src\automation\paths.rs:261:11: warning: constant `CONFIRM_SEND_FRIEND_REQUEST` is never used
+gui\tauri\src-tauri\src\automation\paths.rs:262:11: warning: constant `TELEPORT_MARK_RECALL` is never used
+gui\tauri\src-tauri\src\automation\paths.rs:263:11: warning: constant `TELEPORT_MARK_RECALL_TIMER` is never used
+gui\tauri\src-tauri\src\automation\paths.rs:265:11: warning: constant `BACKPACK_IS_VISIBLE` is never used
+gui\tauri\src-tauri\src\automation\paths.rs:266:11: warning: constant `EQUIPMENT_SET_MANAGER_TITLE` is never used
+gui\tauri\src-tauri\src\automation\paths.rs:267:11: warning: constant `BACKPACK_TITLE` is never used
+gui\tauri\src-tauri\src\automation\paths.rs:268:11: warning: constant `EXIT_ZAFARIA_CLASS_PICTURE` is never used
+gui\tauri\src-tauri\src\automation\paths.rs:269:11: warning: constant `EXIT_PET_LEVELED_UP` is never used
+gui\tauri\src-tauri\src\automation\paths.rs:270:11: warning: constant `AVALON_BADGE_EXIT` is never used
+gui\tauri\src-tauri\src\automation\paths.rs:271:11: warning: constant `PET_FEED_WINDOW_VISIBLE` is never used
+gui\tauri\src-tauri\src\automation\paths.rs:272:11: warning: constant `PET_FEED_WINDOW_CANCEL_BUTTON` is never used
+gui\tauri\src-tauri\src\automation\paths.rs:273:11: warning: constant `PLAY_DANCE_GAME_BUTTON` is never used
+gui\tauri\src-tauri\src\automation\paths.rs:274:11: warning: constant `SKIP_PET_GAME_BUTTON` is never used
+gui\tauri\src-tauri\src\automation\paths.rs:275:11: warning: constant `WON_PET_GAME_REWARDS_WINDOW` is never used
+gui\tauri\src-tauri\src\automation\paths.rs:276:11: warning: constant `SKIPPED_PET_GAME_REWARDS_WINDOW` is never used
+gui\tauri\src-tauri\src\automation\paths.rs:277:11: warning: constant `WON_PET_GAME_CONTINUE_BUTTON` is never used
+gui\tauri\src-tauri\src\automation\paths.rs:278:11: warning: constant `SKIPPED_PET_GAME_CONTINUE_BUTTON` is never used
+gui\tauri\src-tauri\src\automation\paths.rs:279:11: warning: constant `WON_PET_GAME_PLAY_AGAIN_BUTTON` is never used
+gui\tauri\src-tauri\src\automation\paths.rs:282:11: warning: constant `PET_FEED_ENERGY_COST` is never used
+gui\tauri\src-tauri\src\automation\paths.rs:283:11: warning: constant `PET_FEED_YOUR_ENERGY` is never used
+gui\tauri\src-tauri\src\automation\paths.rs:284:11: warning: constant `DANCE_GAME_ACTION_TEXT` is never used
+gui\tauri\src-tauri\src\automation\paths.rs:285:11: warning: constant `ENERGY_AMOUNT` is never used
+gui\tauri\src-tauri\src\automation\paths.rs:286:11: warning: constant `SKIPPED_FIRST_PET_SNACK` is never used
+gui\tauri\src-tauri\src\automation\paths.rs:287:11: warning: constant `WON_FIRST_PET_SNACK` is never used
+gui\tauri\src-tauri\src\automation\paths.rs:288:11: warning: constant `SKIPPED_PET_GAME_CONTINUE_AND_FEED_BUTTON` is never used
+gui\tauri\src-tauri\src\automation\paths.rs:289:11: warning: constant `WON_PET_GAME_CONTINUE_AND_FEED_BUTTON` is never used
+gui\tauri\src-tauri\src\automation\paths.rs:290:11: warning: constant `SKIPPED_PET_LEVELED_UP_WINDOW` is never used
+gui\tauri\src-tauri\src\automation\paths.rs:291:11: warning: constant `WON_PET_LEVELED_UP_WINDOW` is never used
+gui\tauri\src-tauri\src\automation\paths.rs:292:11: warning: constant `EXIT_SKIPPED_PET_LEVELED_UP` is never used
+gui\tauri\src-tauri\src\automation\paths.rs:293:11: warning: constant `EXIT_WON_PET_LEVELED_UP` is never used
+gui\tauri\src-tauri\src\automation\paths.rs:294:11: warning: constant `WIZARD_CITY_DANCE_GAME` is never used
+gui\tauri\src-tauri\src\automation\paths.rs:295:11: warning: constant `DANCE_GAME_ACTION_TEXTBOX` is never used
+gui\tauri\src-tauri\src\automation\paths.rs:296:11: warning: constant `CONFIRM_ACCEPT_FRIEND_REQUEST` is never used
+gui\tauri\src-tauri\src\automation\paths.rs:297:11: warning: constant `CLOSE_REAL_FRIEND_LIST_BUTTON` is never used
+gui\tauri\src-tauri\src\automation\paths.rs:298:11: warning: constant `EXIT_WYSTERIA_TOURNAMENT` is never used
+gui\tauri\src-tauri\src\automation\utils.rs:23:11: warning: constant `STREAMPORTAL_LOCATIONS` is never used
+gui\tauri\src-tauri\src\automation\utils.rs:36:11: warning: constant `NANAVATOR_LOCATIONS` is never used
+gui\tauri\src-tauri\src\automation\utils.rs:87:14: warning: function `new_portals_cycle` is never used
+gui\tauri\src-tauri\src\automation\utils.rs:200:14: warning: function `wait_for_visible_by_path` is never used
+gui\tauri\src-tauri\src\automation\utils.rs:212:14: warning: function `wait_for_window_by_path` is never used
+gui\tauri\src-tauri\src\automation\utils.rs:308:14: warning: function `get_quest_name_async` is never used
+gui\tauri\src-tauri\src\automation\utils.rs:343:8: warning: function `read_control_checkbox_text` is never used
+gui\tauri\src-tauri\src\automation\utils.rs:350:14: warning: function `go_to_new_world` is never used
+gui\tauri\src-tauri\src\automation\utils.rs:548:14: warning: function `safe_click_window` is never used
+gui\tauri\src-tauri\src\automation\utils.rs:729:8: warning: function `is_potion_needed` is never used
+gui\tauri\src-tauri\src\automation\utils.rs:734:14: warning: function `use_potion` is never used
+gui\tauri\src-tauri\src\automation\utils.rs:739:14: warning: function `auto_potions` is never used
+gui\tauri\src-tauri\src\automation\utils.rs:748:14: warning: function `auto_potions_force_buy` is never used
+gui\tauri\src-tauri\src\automation\utils.rs:828:14: warning: function `spiral_door_with_quest` is never used
+gui\tauri\src-tauri\src\automation\utils.rs:838:14: warning: function `collect_wisps` is never used
+gui\tauri\src-tauri\src\automation\utils.rs:854:14: warning: function `collect_wisps_with_limit` is never used
+gui\tauri\src-tauri\src\automation\utils.rs:880:14: warning: function `is_popup_title_relevant` is never used
+gui\tauri\src-tauri\src\automation\utils.rs:892:8: warning: function `pid_to_client` is never used
+gui\tauri\src-tauri\src\automation\utils.rs:952:14: warning: function `generate_tfc` is never used
+gui\tauri\src-tauri\src\automation\utils.rs:984:14: warning: function `accept_tfc` is never used
+gui\tauri\src-tauri\src\automation\utils.rs:1002:8: warning: function `assign_pet_level` is never used
+gui\tauri\src-tauri\src\automation\utils.rs:1006:14: warning: function `change_equipment_set` is never used
+gui\tauri\src-tauri\src\automation\utils.rs:1037:14: warning: function `sync_camera` is never used
+gui\tauri\src-tauri\src\automation\utils.rs:1064:8: warning: function `set_wizard_name_from_character_screen` is never used
+gui\tauri\src-tauri\src\automation\utils.rs:1081:8: warning: function `return_wizard_energy_from_character_screen` is never used
+gui\tauri\src-tauri\src\automation\dialogue.rs:41:8: warning: function `auto_dialogue` is never used
+gui\tauri\src-tauri\src\automation\dialogue.rs:65:8: warning: function `dismiss_dungeon_warning` is never used
+gui\tauri\src-tauri\src\automation\dialogue.rs:78:8: warning: function `exit_menus` is never used
+gui\tauri\src-tauri\src\automation\sigil.rs:20:12: warning: struct `Sigil` is never constructed
+gui\tauri\src-tauri\src\automation\sigil.rs:27:12: warning: multiple associated items are never used
+gui\tauri\src-tauri\src\deimoslang\ir.rs:130:9: warning: unused `std::result::Result` that must be used
+warning: `wizwalker-gui` (lib) generated 168 warnings (run `cargo fix --lib -p wizwalker-gui` to apply 10 suggestions)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 10.55s

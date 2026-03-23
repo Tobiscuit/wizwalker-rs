@@ -1,0 +1,239 @@
+warning: variable does not need to be mutable
+   --> wizwalker\src\memory\hooks.rs:569:13
+    |
+569 |         let mut packed_should_update = packed_export;
+    |             ----^^^^^^^^^^^^^^^^^^^^
+    |             |
+    |             help: remove this `mut`
+    |
+    = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused variable: `packed_should_update`
+   --> wizwalker\src\memory\hooks.rs:569:13
+    |
+569 |         let mut packed_should_update = packed_export;
+    |             ^^^^^^^^^^^^^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_packed_should_update`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: associated constant `GC_SELECTED_CAMERA` is never used
+   --> wizwalker\src\client.rs:973:11
+    |
+ 83 | impl Client {
+    | ----------- associated constant in this implementation
+...
+973 |     const GC_SELECTED_CAMERA: usize = 0x22290;
+    |           ^^^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: associated constant `GETCLASSINFOEX_PATTERN` is never used
+   --> wizwalker\src\memory\hooks.rs:730:11
+    |
+725 | impl MouselessCursorMoveHook {
+    | ---------------------------- associated constant in this implementation
+...
+730 |     const GETCLASSINFOEX_PATTERN: &[u8] = &[
+    |           ^^^^^^^^^^^^^^^^^^^^^^
+
+warning: `wizwalker` (lib) generated 4 warnings (run `cargo fix --lib -p wizwalker` to apply 2 suggestions)
+    Checking wizwalker-gui v0.1.0 (C:\dev\wizwalker-rs\gui\tauri\src-tauri)
+warning: unused import: `wizwalker::memory::reader::MemoryReaderExt`
+  --> gui\tauri\src-tauri\src\commands\hooks.rs:12:5
+   |
+12 | use wizwalker::memory::reader::MemoryReaderExt;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused imports: `debug` and `info`
+ --> gui\tauri\src-tauri\src\automation\sigil.rs:8:15
+  |
+8 | use tracing::{debug, info};
+  |               ^^^^^  ^^^^
+
+warning: unused import: `error`
+ --> gui\tauri\src-tauri\src\automation\dance_game_hook.rs:7:22
+  |
+7 | use tracing::{debug, error};
+  |                      ^^^^^
+
+warning: unused import: `wizwalker::memory::hooks::HookType`
+  --> gui\tauri\src-tauri\src\automation\dance_game_hook.rs:10:5
+   |
+10 | use wizwalker::memory::hooks::HookType;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `std::fmt`
+ --> gui\tauri\src-tauri\src\deimoslang\types.rs:6:5
+  |
+6 | use std::fmt;
+  |     ^^^^^^^^
+
+warning: unused import: `TokenKind`
+ --> gui\tauri\src-tauri\src\deimoslang\types.rs:7:43
+  |
+7 | use crate::deimoslang::tokenizer::{Token, TokenKind};
+  |                                           ^^^^^^^^^
+
+warning: variable does not need to be mutable
+   --> gui\tauri\src-tauri\src\automation\questing.rs:145:13
+    |
+145 |         let mut clients_in_solo_zone = Vec::new();
+    |             ----^^^^^^^^^^^^^^^^^^^^
+    |             |
+    |             help: remove this `mut`
+    |
+    = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
+
+error[E0277]: `*mut c_void` cannot be sent between threads safely
+    --> gui\tauri\src-tauri\src\events.rs:224:33
+     |
+ 224 |   ...                   tauri::async_runtime::spawn(async move {
+     |                         ^                           ---------- within this `{async block@gui\tauri\src-tauri\src\events.rs:224:61: 224:71}`
+     |  _______________________|
+     | |
+ 225 | | ...                       tracing::info!("[arcane] Starting auto-combat for {}", label_clone);
+ 226 | | ...                       let handler = std::sync::Arc::new(wizwalker::combat::handler::CombatHandler::new(client_clone));
+ 227 | | ...                       let aoe_handler = wizwalker::combat::handler::AoeHandler::new(handler);
+ 228 | | ...                       let _ = aoe_handler.handle_combat().await;
+ 229 | | ...                       tracing::info!("[arcane] Auto-combat finished for {}", label_clone);
+ 230 | | ...                   });
+     | |________________________^ `*mut c_void` cannot be sent between threads safely
+     |
+     = help: within `{async block@gui\tauri\src-tauri\src\events.rs:224:61: 224:71}`, the trait `std::marker::Send` is not implemented for `*mut c_void`
+note: required because it appears within the type `windows::Win32::Foundation::HWND`
+    --> C:\Users\Jrami\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\windows-0.62.2\src\Windows\Win32\Foundation\mod.rs:5670:12
+     |
+5670 | pub struct HWND(pub *mut core::ffi::c_void);
+     |            ^^^^
+note: required because it's used within this `async` fn body
+    --> wizwalker\src\mouse_handler.rs:79:21
+     |
+  79 |       ) -> Result<()> {
+     |  _____________________^
+  80 | |         let (button_down, button_up) = if right_click {
+  81 | |             (WM_RBUTTONDOWN, WM_RBUTTONUP)
+  82 | |         } else {
+...    |
+ 115 | |         Ok(())
+ 116 | |     }
+     | |_____^
+note: required because it's used within this `async` fn body
+    --> wizwalker\src\mouse_handler.rs:54:95
+     |
+  54 |       pub async fn click_window(&self, window: &DynamicWindow, right_click: bool) -> Result<()> {
+     |  _______________________________________________________________________________________________^
+  55 | |         let rect = window.window_rectangle()?;
+  56 | |         let center_x = rect.x + rect.width / 2;
+  57 | |         let center_y = rect.y + rect.height / 2;
+  58 | |         self.click(center_x, center_y, right_click, 0.0, false).await
+  59 | |     }
+     | |_____^
+note: required because it's used within this `async` fn body
+    --> wizwalker\src\combat\card.rs:35:134
+     |
+  35 |       pub async fn cast(&self, target: CardTarget<'_>, sleep_time: Option<f32>, debug_paint: bool) -> Result<(), WizWalkerMemoryError> {
+     |  ______________________________________________________________________________________________________________________________________^
+  36 | |         match target {
+  37 | |             CardTarget::Card(target_card) => {
+  38 | |                 let cards_len_before = self.combat_handler.get_cards().await?.len();
+...    |
+ 107 | |         Ok(())
+ 108 | |     }
+     | |_____^
+note: required because it's used within this `async` fn body
+    --> wizwalker\src\combat\handler.rs:240:74
+     |
+ 240 |       pub async fn handle_round(&self) -> Result<(), WizWalkerMemoryError> {
+     |  __________________________________________________________________________^
+ 241 | |         let enchanted_aoes = self.handler.get_damaging_aoes(Some(true)).await?;
+ 242 | |         if !enchanted_aoes.is_empty() {
+ 243 | |             return enchanted_aoes[0].cast(crate::combat::card::CardTarget::None, Some(1.0), false).await;
+...    |
+ 287 | |         Ok(())
+ 288 | |     }
+     | |_____^
+note: required because it's used within this `async` fn body
+    --> wizwalker\src\combat\handler.rs:196:75
+     |
+ 196 |       pub async fn handle_combat(&self) -> Result<(), WizWalkerMemoryError> {
+     |  ___________________________________________________________________________^
+ 197 | |         while self.handler.in_combat().await? {
+ 198 | |             self.handler.wait_for_planning_phase(0.5).await?;
+...    |
+ 211 | |         Ok(())
+ 212 | |     }
+     | |_____^
+note: required because it's used within this `async` block
+    --> gui\tauri\src-tauri\src\events.rs:224:61
+     |
+ 224 | ...                   tauri::async_runtime::spawn(async move {
+     |                                                   ^^^^^^^^^^
+note: required by a bound in `tauri::async_runtime::spawn`
+    --> C:\Users\Jrami\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\tauri-2.10.3\src\async_runtime.rs:270:15
+     |
+ 268 | pub fn spawn<F>(task: F) -> JoinHandle<F::Output>
+     |        ----- required by a bound in this function
+ 269 | where
+ 270 |   F: Future + Send + 'static,
+     |               ^^^^ required by this bound in `spawn`
+
+warning: unused variable: `icon_list`
+   --> gui\tauri\src-tauri\src\automation\utils.rs:893:5
+    |
+893 |     icon_list: Option<i32>,
+    |     ^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_icon_list`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused variable: `icon_index`
+   --> gui\tauri\src-tauri\src\automation\utils.rs:894:5
+    |
+894 |     icon_index: Option<i32>,
+    |     ^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_icon_index`
+
+warning: variable does not need to be mutable
+  --> gui\tauri\src-tauri\src\automation\drop_logger.rs:51:25
+   |
+51 |                     let mut drop = DROP_REGEX_4.find(raw_drop).map(|m| m.as_str()).unwrap_or("");
+   |                         ----^^^^
+   |                         |
+   |                         help: remove this `mut`
+
+warning: variable does not need to be mutable
+  --> gui\tauri\src-tauri\src\automation\drop_logger.rs:56:21
+   |
+56 |                 let mut drop = DROP_REGEX_COLON.find(&raw_i).map(|m| m.as_str()).unwrap_or("");
+   |                     ----^^^^
+   |                     |
+   |                     help: remove this `mut`
+
+warning: value assigned to `t` is never read
+   --> gui\tauri\src-tauri\src\automation\command_parser.rs:261:108
+    |
+261 | ...et mut t = 0.1; if split.len() >= 4 { t = split[3].as_str().parse::<f64>().unwrap_or(0.1); }
+    |                                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = help: maybe it is overwritten before being read?
+    = note: `#[warn(unused_assignments)]` (part of `#[warn(unused)]`) on by default
+
+warning: value assigned to `is_valid` is never read
+   --> gui\tauri\src-tauri\src\automation\effect_simulation.rs:587:17
+    |
+587 |                 is_valid = true;
+    |                 ^^^^^^^^^^^^^^^
+    |
+    = help: maybe it is overwritten before being read?
+
+warning: value assigned to `caster_total_spips` is never read
+   --> gui\tauri\src-tauri\src\automation\effect_simulation.rs:741:9
+    |
+741 |         caster_total_spips += caster_pips_cache[format!("{}_pips", s)].as_i64().unwrap_or(0);
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = help: maybe it is overwritten before being read?
+
+For more information about this error, try `rustc --explain E0277`.
+warning: `wizwalker-gui` (lib) generated 14 warnings
+error: could not compile `wizwalker-gui` (lib) due to 1 previous error; 14 warnings emitted

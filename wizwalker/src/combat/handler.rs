@@ -48,7 +48,7 @@ impl CombatHandler {
     pub async fn handle_combat(&self) -> Result<(), WizWalkerMemoryError> {
         while self.in_combat().await? {
             self.wait_for_planning_phase(0.5).await?;
-            if let Ok(phase) = self.client.duel.as_ref().expect("duel not initialized").duel_phase() {
+            if let Ok(phase) = self.client.duel().ok_or_else(|| crate::errors::WizWalkerError::Other("duel not initialized".to_string()))?.duel_phase() {
                 if phase != DuelPhase::Planning {
                     break;
                 }
@@ -69,7 +69,7 @@ impl CombatHandler {
 
     pub async fn wait_for_planning_phase(&self, sleep_time: f32) -> Result<(), WizWalkerMemoryError> {
         loop {
-            match self.client.duel.as_ref().expect("duel not initialized").duel_phase() {
+            match self.client.duel().ok_or_else(|| crate::errors::WizWalkerError::Other("duel not initialized".to_string()))?.duel_phase() {
                 Ok(phase) if phase == DuelPhase::Planning || phase == DuelPhase::Ended => break,
                 _ => sleep(Duration::from_secs_f32(sleep_time)).await,
             }
@@ -112,7 +112,7 @@ impl CombatHandler {
             return Ok(windows.clone());
         }
 
-        let spell_checkbox_windows = self.client.root_window.as_ref().expect("root_window not initialized").get_windows_with_type("SpellCheckBox")?;
+        let spell_checkbox_windows = self.client.root_window().ok_or_else(|| crate::errors::WizWalkerError::Other("root_window not initialized".to_string()))?.get_windows_with_type("SpellCheckBox")?;
         let mut filtered = Vec::new();
         for w in spell_checkbox_windows {
             if w.name()? != "PetCard" {
@@ -138,7 +138,7 @@ impl CombatHandler {
     }
 
     pub async fn get_members(self: &Arc<Self>) -> Result<Vec<CombatMember>, WizWalkerMemoryError> {
-        let combatant_windows = self.client.root_window.as_ref().expect("root_window not initialized").get_windows_with_name("CombatantControl")?;
+        let combatant_windows = self.client.root_window().ok_or_else(|| crate::errors::WizWalkerError::Other("root_window not initialized".to_string()))?.get_windows_with_name("CombatantControl")?;
         let mut members = Vec::new();
 
         for window in combatant_windows {
@@ -165,12 +165,12 @@ impl CombatHandler {
     }
 
     pub async fn round_number(&self) -> Result<u32, WizWalkerMemoryError> {
-        let round = self.client.duel.as_ref().expect("duel not initialized").round_num()?;
+        let round = self.client.duel().ok_or_else(|| crate::errors::WizWalkerError::Other("duel not initialized".to_string()))?.round_num()?;
         Ok(round as u32)
     }
 
     pub async fn pass_button(&self) -> Result<(), WizWalkerMemoryError> {
-        let pos_done_window = self.client.root_window.as_ref().expect("root_window not initialized").get_windows_with_name("DoneWindow")?;
+        let pos_done_window = self.client.root_window().ok_or_else(|| crate::errors::WizWalkerError::Other("root_window not initialized".to_string()))?.get_windows_with_name("DoneWindow")?;
         if !pos_done_window.is_empty() {
             let done_window = &pos_done_window[0];
             if done_window.is_visible()? {
@@ -197,7 +197,7 @@ impl AoeHandler {
         while self.handler.in_combat().await? {
             self.handler.wait_for_planning_phase(0.5).await?;
 
-            if let Ok(phase) = self.handler.client.duel.as_ref().expect("duel not initialized").duel_phase() {
+            if let Ok(phase) = self.handler.client.duel().ok_or_else(|| crate::errors::WizWalkerError::Other("duel not initialized".to_string()))?.duel_phase() {
                 if phase == DuelPhase::Ended {
                     break;
                 }
@@ -213,7 +213,7 @@ impl AoeHandler {
 
     async fn wait_for_non_planning_phase(&self, sleep_time: f32) -> Result<(), WizWalkerMemoryError> {
         loop {
-            match self.handler.client.duel.as_ref().expect("duel not initialized").duel_phase() {
+            match self.handler.client.duel().ok_or_else(|| crate::errors::WizWalkerError::Other("duel not initialized".to_string()))?.duel_phase() {
                 Ok(phase) if phase != DuelPhase::Planning || phase == DuelPhase::Ended => break,
                 _ => sleep(Duration::from_secs_f32(sleep_time)).await,
             }
@@ -502,7 +502,7 @@ impl CombatHandler {
     }
 
     pub async fn attempt_willcast(self: &Arc<Self>, on_member: Option<&str>, on_client: bool) -> Result<bool, WizWalkerMemoryError> {
-        let spell_checkbox_windows = self.client.root_window.as_ref().expect("root_window not initialized").get_windows_with_type("SpellCheckBox")?;
+        let spell_checkbox_windows = self.client.root_window().ok_or_else(|| crate::errors::WizWalkerError::Other("root_window not initialized".to_string()))?.get_windows_with_type("SpellCheckBox")?;
         let mut pet_card_win = None;
         for w in spell_checkbox_windows {
             if w.name()? == "PetCard" {
@@ -538,7 +538,7 @@ impl CombatHandler {
     }
 
     pub async fn flee_button(&self) -> Result<(), WizWalkerMemoryError> {
-        let pos_done_window = self.client.root_window.as_ref().expect("root_window not initialized").get_windows_with_name("DoneWindow")?;
+        let pos_done_window = self.client.root_window().ok_or_else(|| crate::errors::WizWalkerError::Other("root_window not initialized".to_string()))?.get_windows_with_name("DoneWindow")?;
         if !pos_done_window.is_empty() {
             let done_window = &pos_done_window[0];
             if done_window.is_visible()? {

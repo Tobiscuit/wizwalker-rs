@@ -194,7 +194,7 @@ async fn logout_and_in(c: &Client) {
 
 pub async fn teleport_to_friend_from_list(c: &Client, n: Option<String>, il: Option<i32>) -> Result<(), String> {
     c.send_key(Keycode::F); tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
-    if let Some(root) = &c.root_window {
+    if let Some(root) = c.root_window() {
         if let Some(btn) = get_window_from_path(&root.window, &["NewFriendsListWindow", "listFriends", "Friend0"]) {
             let _ = c.mouse_handler.click_window(&btn, false).await; tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
             if let Some(tp) = get_window_from_path(&root.window, &["wndCharacter", "ButtonLayout", "btnTeleport"]) {
@@ -218,7 +218,7 @@ pub async fn parse_command(clients: Vec<Client>, command_str: &str) -> std::resu
         "log" | "debug" | "print" => {
             if split.len() >= 3 && split[1].as_str().to_lowercase() == "window" && split[2].is_list() {
                 let p_vec = split[2].as_list(); let path: Vec<&str> = p_vec.iter().map(|s| s.as_str()).collect();
-                for c in &clients { if let Some(root) = &c.root_window { if let Some(w) = get_window_from_path(&root.window, &path) { debug!("{} - {}", c.title(), w.maybe_text().unwrap_or_default()); } } }
+                for c in &clients { if let Some(root) = c.root_window() { if let Some(w) = get_window_from_path(&root.window, &path) { debug!("{} - {}", c.title(), w.maybe_text().unwrap_or_default()); } } }
             } else { debug!("{}", split[1..].iter().map(|t| t.as_str()).collect::<Vec<_>>().join(" ")); }
         }
         _ => {

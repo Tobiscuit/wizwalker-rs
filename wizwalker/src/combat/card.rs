@@ -81,7 +81,7 @@ impl CombatCard {
                     }
                 }
 
-                let confirm_windows = self.combat_handler.client.root_window.as_ref().expect("root_window not initialized").get_windows_with_name("ConfirmTargetsWindow")?;
+                let confirm_windows = self.combat_handler.client.root_window().ok_or_else(|| crate::errors::WizWalkerError::Other("root_window not initialized".to_string()))?.get_windows_with_name("ConfirmTargetsWindow")?;
                 if !confirm_windows.is_empty() {
                     let confirm_window = &confirm_windows[0];
                     if confirm_window.is_visible()? {

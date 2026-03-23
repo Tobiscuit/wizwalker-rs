@@ -61,7 +61,7 @@ pub fn curve_stat(stat: f32, l: f32, k0: f32, n0: f32) -> f32 {
 
 pub fn curve_damage(client: &Client, member: &CombatMember, damage: f32) -> Result<f32, Box<dyn std::error::Error>> {
     if member.is_player().unwrap_or(false) {
-        let duel = client.duel.as_ref().ok_or("No duel")?;
+        let duel = client.duel().ok_or("No duel")?;
         let l = duel.damage_limit().unwrap_or(0.0);
         let k0 = duel.damage_k0().unwrap_or(0.0);
         let n0 = duel.damage_n0().unwrap_or(0.0);
@@ -72,7 +72,7 @@ pub fn curve_damage(client: &Client, member: &CombatMember, damage: f32) -> Resu
 
 pub fn curve_resist(client: &Client, member: &CombatMember, resist: f32) -> Result<f32, Box<dyn std::error::Error>> {
     if member.is_player().unwrap_or(false) {
-        let duel = client.duel.as_ref().ok_or("No duel")?;
+        let duel = client.duel().ok_or("No duel")?;
         let l = duel.resist_limit().unwrap_or(0.0);
         let k0 = duel.resist_k0().unwrap_or(0.0);
         let n0 = duel.resist_n0().unwrap_or(0.0);

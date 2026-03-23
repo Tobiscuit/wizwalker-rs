@@ -72,7 +72,8 @@ pub fn get_window_from_path(root: &DynamicWindow, path: &[&str]) -> Option<Dynam
 
 /// Check if a window at the given path is visible.
 pub fn is_visible_by_path(client: &Client, path: &[&str]) -> bool {
-    let root = match &client.root_window {
+    let rw_opt = client.root_window();
+    let root = match rw_opt.as_ref() {
         Some(rw) => &rw.window,
         None => return false,
     };
@@ -84,7 +85,8 @@ pub fn is_visible_by_path(client: &Client, path: &[&str]) -> bool {
 }
 
 pub async fn new_portals_cycle(client: &Client, location: &str) {
-    let root = match &client.root_window {
+    let rw_opt = client.root_window();
+    let root = match rw_opt.as_ref() {
         Some(rw) => &rw.window,
         None => return,
     };
@@ -174,7 +176,8 @@ pub async fn new_portals_cycle(client: &Client, location: &str) {
 
 /// Click a window found by navigating the UI tree path.
 pub async fn click_window_by_path(client: &Client, path: &[&str]) -> bool {
-    let root = match &client.root_window {
+    let rw_opt = client.root_window();
+    let root = match rw_opt.as_ref() {
         Some(rw) => &rw.window,
         None => return false,
     };
@@ -215,7 +218,8 @@ pub async fn wait_for_window_by_path(client: &Client, path: &[&str], click: bool
 
 /// Read text from a window found by path.
 pub fn text_from_path(client: &Client, path: &[&str]) -> Option<String> {
-    let root = match &client.root_window {
+    let rw_opt = client.root_window();
+    let root = match rw_opt.as_ref() {
         Some(rw) => &rw.window,
         None => return None,
     };
@@ -433,7 +437,8 @@ pub async fn go_to_new_world(client: &Client, destination_world: &str, open_wind
         sleep(Duration::from_millis(200)).await;
     }
 
-    let root = match &client.root_window {
+    let rw_opt = client.root_window();
+    let root = match rw_opt.as_ref() {
         Some(rw) => &rw.window,
         None => return,
     };
@@ -900,7 +905,8 @@ pub async fn teleport_to_friend_from_list(
         sleep(Duration::from_millis(500)).await;
     }
 
-    let root = match &client.root_window {
+    let rw_opt = client.root_window();
+    let root = match rw_opt.as_ref() {
         Some(rw) => &rw.window,
         None => return Err("Root window not found".to_string()),
     };
@@ -1056,7 +1062,8 @@ pub async fn sync_camera(client: &Client, xyz: Option<XYZ>, yaw: Option<f32>) {
 }
 
 pub fn set_wizard_name_from_character_screen(client: &Client) -> Option<String> {
-    let root = match &client.root_window {
+    let rw_opt = client.root_window();
+    let root = match rw_opt.as_ref() {
         Some(rw) => &rw.window,
         None => return None,
     };

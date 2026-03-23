@@ -18,7 +18,7 @@ use std::sync::Mutex;
 
 use tauri::{AppHandle, Emitter, Manager};
 
-use wizwalker::memory::reader::MemoryReaderExt;
+use wizwalker::memory::reader::{MemoryReader, MemoryReaderExt};
 
 use crate::state::{Position, TelemetryPayload, WizState};
 
@@ -33,6 +33,8 @@ pub fn spawn_telemetry_loop(app: AppHandle) {
         let mut hook_cooldown: u32 = 0;
         // Counter for telemetry log rate-limiting
         let mut telem_counter: u32 = 0;
+        // Tracking active combat tasks to avoid duplicate spawns
+        let mut active_combat: std::collections::HashSet<String> = std::collections::HashSet::new();
 
         loop {
             let state = app.state::<Mutex<WizState>>();
@@ -188,14 +190,23 @@ pub fn spawn_telemetry_loop(app: AppHandle) {
                     // We re-read and re-write if it differs from target.
                     if should_reapply_speed {
                         let target_speed = ((wiz.speed_multiplier - 1.0) * 100.0) as i16;
-                        if let Ok(client_base) = client.hook_handler.read_current_client_base() {
-                            if let Some(reader) = client.process_reader() {
-                                let client_obj_ptr: u64 = reader.read_typed(client_base + 0x21318).unwrap_or(0);
+                        if let Some(game_client) = client.game_client() {
+                            let gc_base = game_client.read_base_address().unwrap_or(0);
+                            if gc_base != 0 {
+                                let arc_reader = client.hook_handler.reader().unwrap().as_ref();
+                                let client_obj_ptr_bytes = arc_reader.read_bytes((gc_base + 0x21318) as usize, 8).unwrap_or(vec![0; 8]);
+                                let mut ptr_arr = [0u8; 8];
+                                ptr_arr.copy_from_slice(&client_obj_ptr_bytes[..8]);
+                                let client_obj_ptr = u64::from_ne_bytes(ptr_arr);
                                 if client_obj_ptr != 0 {
-                                    let current: i16 = reader.read_typed(client_obj_ptr as usize + 192).unwrap_or(0);
-                                    if current != target_speed {
-                                        let _ = reader.write_typed::<i16>(client_obj_ptr as usize + 192, &target_speed);
-                                        eprintln!("[arcane] Speed re-apply: {}→{} for {}", current, target_speed, _label);
+                                    if let Ok(current_bytes) = arc_reader.read_bytes((client_obj_ptr + 0x190) as usize, 2) {
+                                        let mut current_arr = [0u8; 2];
+                                        current_arr.copy_from_slice(&current_bytes[..2]);
+                                        let current = i16::from_ne_bytes(current_arr);
+                                        if current != target_speed {
+                                            let _ = arc_reader.write_typed((client_obj_ptr + 0x190) as usize, &target_speed);
+                                            tracing::info!("[arcane] Speed re-apply (bypass): {}→{} for {}", current, target_speed, _label);
+                                        }
                                     }
                                 }
                             }
@@ -214,11 +225,26 @@ pub fn spawn_telemetry_loop(app: AppHandle) {
                         crate::automation::dialogue::try_advance_dialogue(&client);
                     }
 
-                    // ── Auto Combat (Deimos.py:909-926) ───────────────
-                    // Full strategy needs SprintyCombat + DeimosLang (Jules).
-                    // Basic pass-through: press Spacebar when in combat.
-                    if auto_combat && client.in_battle() {
-                        client.send_key(wizwalker::constants::Keycode::Spacebar);
+                    // ── Auto Combat (SprintyCombat AoeHandler) ───────────────
+                    if auto_combat {
+                        if client.in_battle() {
+                            if !active_combat.contains(_label) {
+                                active_combat.insert(_label.clone());
+                                let client_clone = std::sync::Arc::new(client.clone());
+                                let label_clone = _label.clone();
+                                tauri::async_runtime::spawn(async move {
+                                    tracing::info!("[arcane] Starting auto-combat for {}", label_clone);
+                                    let handler = std::sync::Arc::new(wizwalker::combat::handler::CombatHandler::new(client_clone));
+                                    let aoe_handler = wizwalker::combat::handler::AoeHandler::new(handler);
+                                    let _ = aoe_handler.handle_combat().await;
+                                    tracing::info!("[arcane] Auto-combat finished for {}", label_clone);
+                                });
+                            }
+                        } else {
+                            active_combat.remove(_label);
+                        }
+                    } else if active_combat.contains(_label) {
+                        active_combat.remove(_label);
                     }
 
                     // ── Anti-AFK (Deimos.py:118, camera jiggle) ───────

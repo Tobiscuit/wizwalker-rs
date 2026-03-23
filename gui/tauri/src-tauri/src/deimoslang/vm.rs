@@ -403,7 +403,7 @@ impl VM {
 
     async fn check_duel_round(&self, client: &Client) -> i32 {
         if !client.in_battle() { return 0; }
-        if let Some(duel) = &client.duel {
+        if let Some(duel) = client.duel() {
             return duel.round_num().unwrap_or(0);
         }
         0 
@@ -440,10 +440,10 @@ impl VM {
     }
 
     async fn select_friend_from_list_vm(&self, client: &Client, name: &str) -> bool {
-        let root = if let Some(rw) = &client.root_window { &rw.window } else { return false; };
-        let friends_window = self.maybe_get_named_window(root, "NewFriendsListWindow").await;
+        let root = if let Some(rw) = client.root_window() { rw.window.clone() } else { return false; };
+        let friends_window = self.maybe_get_named_window(&root, "NewFriendsListWindow").await;
         if friends_window.is_none() {
-            let friend_button = self.maybe_get_named_window(root, "btnFriends").await;
+            let friend_button = self.maybe_get_named_window(&root, "btnFriends").await;
             if let Some(btn) = friend_button {
                  let _ = client.mouse_handler.click_window(&btn, false).await;
                  sleep(Duration::from_millis(400)).await;
@@ -732,7 +732,8 @@ impl VM {
                          self.any_player_client.clear();
                          let mut found_any = false;
                          for i in 0..self.clients.len() {
-                             let root = self.clients[i].root_window.as_ref().map(|rw| &rw.window);
+                             let root_opt = self.clients[i].root_window();
+                             let root = root_opt.as_ref().map(|rw| &rw.window);
                              if let Some(r) = root {
                                  if let Some(win) = get_window_from_path(r, &path_refs) {
                                      if win.is_control_grayed().unwrap_or(false) {
@@ -746,7 +747,8 @@ impl VM {
                      } else {
                          let indices = self.select_players(selector);
                          for i in indices {
-                             let root = self.clients[i].root_window.as_ref().map(|rw| &rw.window);
+                             let root_opt = self.clients[i].root_window();
+                             let root = root_opt.as_ref().map(|rw| &rw.window);
                              if let Some(r) = root {
                                  if let Some(win) = get_window_from_path(r, &path_refs) {
                                      if !win.is_control_grayed().unwrap_or(false) { return Ok(DeimosValue::Bool(false)); }
@@ -1546,7 +1548,8 @@ impl VM {
                              let path: Vec<String> = l.into_iter().map(|v| v.to_string()).collect();
                              let path_refs: Vec<&str> = path.iter().map(|s| s.as_str()).collect();
                              for &i in &indices {
-                                 let root = self.clients[i].root_window.as_ref().map(|rw| &rw.window);
+                                 let root_opt = self.clients[i].root_window();
+                                 let root = root_opt.as_ref().map(|rw| &rw.window);
                                  if let Some(r) = root {
                                      if let Some(win) = get_window_from_path(r, &path_refs) {
                                          let _ = self.clients[i].mouse_handler.set_mouse_position_to_window(&win).await;
@@ -1845,7 +1848,7 @@ impl VM {
                         let indices = self.select_players(selector);
                         if let Ok(deck) = decode_deck(token) {
                             for idx in indices {
-                                if let Some(stats) = &self.clients[idx].game_stats {
+                                if let Some(stats) = self.clients[idx].stats() {
                                      if let Ok(deck_obj) = stats.deck() {
                                           // deck_obj.set_from_preset(deck);
                                      }
@@ -1862,7 +1865,7 @@ impl VM {
                     if let [InstructionData::PlayerSelector(selector)] = data.as_slice() {
                         let indices = self.select_players(selector);
                         for idx in indices {
-                            if let Some(stats) = &self.clients[idx].game_stats {
+                            if let Some(stats) = self.clients[idx].stats() {
                                 if let Ok(deck_obj) = stats.deck() {
                                     // let deck = deck_obj.to_preset();
                                     // let token = encode_deck(&deck);

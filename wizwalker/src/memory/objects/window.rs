@@ -471,6 +471,7 @@ impl DynamicGraphicalSpellWindow {
 }
 
 /// The game's root UI window — entry point for all window tree navigation.
+#[derive(Clone)]
 pub struct CurrentRootWindow {
     pub window: DynamicWindow,
 }

@@ -23,7 +23,8 @@ pub const DROP_TYPES: &[&str] = &[
 
 pub async fn get_chat(client: &Client) -> String {
     if is_visible_by_path(client, paths::CHAT_WINDOW) {
-        let root = match &client.root_window {
+        let rw_opt = client.root_window();
+        let root = match rw_opt.as_ref() {
             Some(rw) => &rw.window,
             None => return String::new(),
         };

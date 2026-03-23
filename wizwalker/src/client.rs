@@ -43,18 +43,29 @@ pub struct Client {
     pub hook_handler: HookHandler,
     pub mouse_handler: MouseHandler,
 
-    // ── Live memory objects (initialized by open()) ─────────────────
-    /// Combat duel state. Set by `open()`.
-    pub duel: Option<DynamicDuel>,
-    /// Player game stats. Set by `open()`.
-    pub game_stats: Option<DynamicGameStats>,
-    /// Root UI window for navigating the game's UI tree. Set by `open()`.
-    pub root_window: Option<CurrentRootWindow>,
+    // ── Live memory objects ─────────────────────────────────────────
+    // These are dynamically accessed via getter methods: duel(), stats(), root_window(), sigil()
 
     // ── Internal state ──────────────────────────────────────────────
-    /// Whether `close()` has been called.
     closed: bool,
     pub dance_hook_status: std::sync::atomic::AtomicBool,
+}
+
+impl Clone for Client {
+    fn clone(&self) -> Self {
+        Self {
+            window_handle: self.window_handle,
+            process_handle: self.process_handle,
+            process_id: self.process_id,
+            reader: self.reader.clone(),
+            hook_handler: self.hook_handler.clone(),
+            mouse_handler: self.mouse_handler.clone(),
+            closed: self.closed,
+            dance_hook_status: std::sync::atomic::AtomicBool::new(
+                self.dance_hook_status.load(std::sync::atomic::Ordering::SeqCst)
+            ),
+        }
+    }
 }
 
 // SAFETY: HWND and HANDLE are raw kernel handles; safe to send between threads.
@@ -84,9 +95,6 @@ impl Client {
             reader: None,
             hook_handler,
             mouse_handler,
-            duel: None,
-            game_stats: None,
-            root_window: None,
             closed: false,
             dance_hook_status: std::sync::atomic::AtomicBool::new(false),
         }
@@ -123,17 +131,7 @@ impl Client {
         // Initialize memory objects with base address 0.
         // Memory objects exist but return errors if read before hooks provide
         // real addresses. Call activate_hooks() to start capturing live data.
-        let dyn_reader: Arc<dyn MemoryReader> = reader.clone();
-
-        // DynamicDuel — base address 0 (placeholder until duel hook resolves it)
-        if let Ok(inner) = DynamicMemoryObject::new(dyn_reader.clone(), 0) {
-            self.duel = Some(DynamicDuel::new(inner));
-        }
-
-        // DynamicGameStats — base address 0 (placeholder until stat hook resolves it)
-        if let Ok(stats) = DynamicGameStats::new(dyn_reader.clone(), 0) {
-            self.game_stats = Some(stats);
-        }
+        let _dyn_reader: Arc<dyn MemoryReader> = reader.clone();
 
         // Attach the reader to the hook handler so it can inject hooks.
         self.hook_handler.attach(reader.clone());
@@ -162,9 +160,6 @@ impl Client {
         }
 
         // Drop memory objects (they hold Arc<dyn MemoryReader> refs).
-        self.duel = None;
-        self.game_stats = None;
-        self.root_window = None;
 
         // Release the reader.
         self.reader = None;
@@ -226,7 +221,7 @@ impl Client {
     ///         return duel_phase is not DuelPhase.ended
     /// ```
     pub fn in_battle(&self) -> bool {
-        let Some(duel) = &self.duel else {
+        let Some(duel) = self.duel() else {
             return false;
         };
 
@@ -240,7 +235,7 @@ impl Client {
     }
 
     pub fn is_in_dialog(&self) -> bool {
-        let Some(root) = &self.root_window else { return false; };
+        let Some(root) = self.root_window() else { return false; };
         if let Ok(wins) = root.window.get_windows_with_name("advance_dialog") {
              for w in wins {
                  if w.is_visible().unwrap_or(false) { return true; }
@@ -424,7 +419,7 @@ impl Client {
     ///         await self.root_window.get_child_by_name("PageFlip")
     /// ```
     pub fn is_loading(&self) -> bool {
-        if let Some(root) = &self.root_window {
+        if let Some(root) = self.root_window() {
             // Check for TransitionWindow or PageFlip
             if let Ok(windows) = root.window.get_windows_with_name("TransitionWindow") {
                 if !windows.is_empty() {
@@ -710,6 +705,27 @@ impl Client {
         let player_base = self.hook_handler.read_current_player_base().ok()?;
         let reader = self.process_reader()?;
         Some(crate::memory::objects::actor_body::ActorBody::new(reader, player_base as u64))
+    }
+
+    pub fn duel(&self) -> Option<DynamicDuel> {
+        let client_base = self.hook_handler.read_current_client_base().ok()?;
+        let reader = self.reader()?;
+
+        let ptr1: u64 = reader.read_typed(client_base + 0x30).ok()?;
+        if ptr1 == 0 { return None; }
+
+        let ptr2: u64 = reader.read_typed(ptr1 as usize + 0x10).ok()?;
+        if ptr2 == 0 { return None; }
+
+        let inner = DynamicMemoryObject::new(reader, ptr2).ok()?;
+        Some(DynamicDuel::new(inner))
+    }
+
+    pub fn root_window(&self) -> Option<CurrentRootWindow> {
+        let root_base = self.hook_handler.read_current_root_window_base().ok()?;
+        let reader = self.reader()?;
+        let inner = DynamicMemoryObject::new(reader, root_base as u64).ok()?;
+        Some(CurrentRootWindow::new(inner))
     }
 
     pub fn stats(&self) -> Option<crate::memory::objects::game_stats::DynamicGameStats> {
