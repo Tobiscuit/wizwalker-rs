@@ -418,7 +418,10 @@ impl<'a> Compiler<'a> {
             }
             Expression::Number(_) | Expression::String(_) | Expression::Key(_)
             | Expression::CommandExpr(_) | Expression::Ident(_) | Expression::Sym(_)
-            | Expression::StackLoc(_) | Expression::ConstantReference(_) => {
+            | Expression::StackLoc(_) | Expression::ConstantReference(_)
+            | Expression::Boolean(_) | Expression::ExprKind(_) | Expression::TeleportKind(_)
+            | Expression::WaitforKind(_) | Expression::CursorKind(_) | Expression::ClickKind(_)
+            | Expression::LogKind(_) => {
                 // Nothing to do
             }
         }

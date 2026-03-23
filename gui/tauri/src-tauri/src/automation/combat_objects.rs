@@ -159,21 +159,21 @@ pub async fn get_game_stats(member_id: u64, members: &[CombatMember]) -> Result<
 pub async fn get_hanging_effects(member_id: u64, members: &[CombatMember]) -> Result<Vec<DynamicSpellEffect>, Box<dyn std::error::Error>> {
     let member = id_to_member(member_id, members).await?;
     let participant = member.get_participant()?;
-    let hanging_effects = participant.hanging_effects()?.unwrap_or_default();
+    let hanging_effects = participant.hanging_effects()?;
     Ok(hanging_effects)
 }
 
 pub async fn get_aura_effects(member_id: u64, members: &[CombatMember]) -> Result<Vec<DynamicSpellEffect>, Box<dyn std::error::Error>> {
     let member = id_to_member(member_id, members).await?;
     let participant = member.get_participant()?;
-    let aura_effects = participant.aura_effects()?.unwrap_or_default();
+    let aura_effects = participant.aura_effects()?;
     Ok(aura_effects)
 }
 
 pub async fn get_shadow_effects(member_id: u64, members: &[CombatMember]) -> Result<Vec<DynamicSpellEffect>, Box<dyn std::error::Error>> {
     let member = id_to_member(member_id, members).await?;
     let participant = member.get_participant()?;
-    let shadow_effects = participant.shadow_spell_effects()?.unwrap_or_default();
+    let shadow_effects = participant.shadow_spell_effects()?;
     Ok(shadow_effects)
 }
 
@@ -198,7 +198,10 @@ pub async fn id_to_member(member_id: u64, members: &[CombatMember]) -> Result<Co
     for member in members {
         if let Ok(owner_id) = member.owner_id() {
             if owner_id == member_id {
-                return Ok(member.clone());
+                return Ok(CombatMember {
+                    combat_handler: member.combat_handler.clone(),
+                    combatant_control: member.combatant_control.clone(),
+                });
             }
         }
     }
@@ -209,7 +212,10 @@ pub async fn id_to_card(spell_id: u32, cards: &[CombatCard]) -> Result<CombatCar
     for card in cards {
         if let Ok(id) = card.spell_id().await {
             if id == spell_id {
-                return Ok(card.clone());
+                return Ok(CombatCard {
+                    combat_handler: card.combat_handler.clone(),
+                    spell_window: card.spell_window.clone(),
+                });
             }
         }
     }
@@ -219,7 +225,7 @@ pub async fn id_to_card(spell_id: u32, cards: &[CombatCard]) -> Result<CombatCar
 pub async fn spell_id_to_effects(spell_id: u32, cards: &[CombatCard]) -> Result<Vec<DynamicSpellEffect>, Box<dyn std::error::Error>> {
     let card = id_to_card(spell_id, cards).await?;
     let g_spell = card.get_graphical_spell().await?;
-    let spell_effects = g_spell.spell_effects()?.unwrap_or_default();
+    let spell_effects = g_spell.spell_effects()?;
     Ok(spell_effects)
 }
 

@@ -4,6 +4,15 @@
 #![allow(dead_code, unused_imports)]
 
 use wizwalker::types::{XYZ, Orient};
+
+pub fn point_to_xyz_orient(origin: &XYZ, target: &XYZ) -> Orient {
+    use super::teleport_math::{calculate_yaw, calculate_pitch};
+    Orient {
+        pitch: calculate_pitch(origin, target),
+        roll: 0.0,
+        yaw: calculate_yaw(origin, target),
+    }
+}
 use wizwalker::client::Client;
 use wizwalker::memory::objects::camera_controller::DynamicCameraController;
 use super::teleport_math::{calculate_yaw, calculate_pitch};

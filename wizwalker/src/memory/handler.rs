@@ -62,6 +62,7 @@ pub const AUTOBOT_SIZE: usize = 3900;
 ///
 /// # Python equivalent
 /// `wizwalker/memory/handler.py` — `HookHandler` class.
+#[derive(Clone)]
 pub struct HookHandler {
     /// Memory reader for the game process. Set by `attach()`.
     reader: Option<Arc<ProcessMemoryReader>>,

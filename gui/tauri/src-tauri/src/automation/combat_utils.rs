@@ -5,7 +5,7 @@
 
 use std::collections::HashMap;
 use wizwalker::combat::member::CombatMember;
-use wizwalker::memory::objects::game_stats::DynamicGameStats;
+use wizwalker::memory::objects::game_stats::{DynamicGameStats, GameStats};
 use super::combat_objects::{SCHOOL_IDS, SCHOOL_NAMES, school_to_str};
 use super::utils::index_with_str;
 

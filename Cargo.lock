@@ -7781,6 +7781,7 @@ dependencies = [
  "base64 0.22.1",
  "bitflags 2.11.0",
  "flate2",
+ "futures",
  "lazy_static",
  "regex",
  "reqwest 0.12.28",

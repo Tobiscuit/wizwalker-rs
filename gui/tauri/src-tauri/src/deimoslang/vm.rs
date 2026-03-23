@@ -17,8 +17,13 @@ use crate::deimoslang::ir::{Instruction, InstructionKind, InstructionData};
 use crate::deimoslang::types::*;
 use crate::deimoslang::tokenizer::TokenKind;
 use crate::automation::config_combat::{delegate_combat_configs, DEFAULT_CONFIG};
-use crate::automation::utils::*;
+use crate::automation::utils::{
+    get_quest_name, click_window_by_path, get_window_from_path, is_free,
+    refill_potions, refill_potions_if_needed, logout_and_in, teleport_to_friend_from_list,
+    is_visible_by_path, text_from_path
+};
 use crate::automation::paths;
+use wizwalker::memory::objects::GameStats as _;
 use crate::automation::sprinty_client::SprintyClient;
 use crate::automation::teleport_math::{navmap_tp, calc_distance, are_xyzs_within_threshold, calc_point_on_3d_line, rotate_point};
 use crate::automation::deck_encoder::{encode_deck, decode_deck, Deck};
@@ -283,8 +288,8 @@ impl VM {
             "X" => Some(Keycode::X),
             "Z" => Some(Keycode::Z),
             "ENTER" => Some(Keycode::Enter),
-            "SPACE" => Some(Keycode::Space),
-            "ESCAPE" => Some(Keycode::Escape),
+            "SPACE" => Some(Keycode::Spacebar),
+            "ESCAPE" => Some(Keycode::Esc),
             "PAGEUP" => Some(Keycode::PageUp),
             "PAGEDOWN" => Some(Keycode::PageDown),
             "END" => Some(Keycode::End),
@@ -324,7 +329,20 @@ impl VM {
         }
     }
 
-    async fn fetch_tracked_quest(&self, client: &Client) -> Result<QuestData, String> {
+    pub fn select_players_any(&self, selector: &PlayerSelector) -> Vec<usize> {
+        if selector.any_player {
+            if !self.any_player_client.is_empty() {
+                self.any_player_client.clone()
+            } else {
+                if self.clients.is_empty() { vec![] } else { vec![0] }
+            }
+        } else {
+            self.select_players(selector)
+        }
+    }
+
+    async fn fetch_tracked_quest(&self, client_idx: usize) -> Result<QuestData, String> {
+        let client = &self.clients[client_idx];
         let tracked_id = client.quest_id().map_err(|e| e.to_string())?;
         let qm = client.quest_manager().map_err(|e| e.to_string())?;
         let quest_data = qm.quest_data().map_err(|e| e.to_string())?;
@@ -335,25 +353,25 @@ impl VM {
         }
     }
 
-    async fn fetch_tracked_quest_text(&self, client: &Client) -> Result<String, String> {
-        let quest = self.fetch_tracked_quest(client).await?;
+    async fn fetch_tracked_quest_text(&self, client_idx: usize) -> Result<String, String> {
+        let quest = self.fetch_tracked_quest(client_idx).await?;
         let name_key = quest.inner.read_value_from_offset::<u64>(0x88).map_err(|e| e.to_string())?; 
-        let name = client.read_wide_string_at(name_key as usize).unwrap_or_else(|_| "Unknown".to_string());
+        let name = self.clients[client_idx].read_wide_string_at(name_key as usize).unwrap_or_else(|| "Unknown".to_string());
         Ok(name.to_lowercase().trim().to_string())
     }
 
-    async fn fetch_quests(&self, client: &Client) -> Result<Vec<(i32, QuestData)>, String> {
-        let qm = client.quest_manager().map_err(|e| e.to_string())?;
+    async fn fetch_quests(&self, client_idx: usize) -> Result<Vec<(i32, QuestData)>, String> {
+        let qm = self.clients[client_idx].quest_manager().map_err(|e| e.to_string())?;
         let quest_data = qm.quest_data().map_err(|e| e.to_string())?;
         Ok(quest_data.into_iter().map(|(id, q)| (id as i32, QuestData::new(q.inner))).collect())
     }
 
-    async fn fetch_quest_text(&self, client: &Client, quest: &QuestData) -> Result<String, String> {
+    async fn fetch_quest_text(&self, client_idx: usize, quest: &QuestData) -> Result<String, String> {
         let name_key = quest.inner.read_value_from_offset::<u64>(0x88).map_err(|e| e.to_string())?;
         if name_key == 0 {
             return Ok("quest finder".to_string());
         }
-        let name = client.read_wide_string_at(name_key as usize).unwrap_or_else(|_| "Unknown".to_string());
+        let name = self.clients[client_idx].read_wide_string_at(name_key as usize).unwrap_or_else(|| "Unknown".to_string());
         Ok(name.to_lowercase().trim().to_string())
     }
 
@@ -368,7 +386,7 @@ impl VM {
         goal_txt.to_lowercase().trim().to_string()
     }
 
-    async fn check_drops(&mut self, client: &Client, item_name: &str) -> bool {
+    async fn check_drops(&self, client: &Client, item_name: &str) -> bool {
         let chat_text = get_chat(client).await;
         if chat_text.is_empty() { return false; }
         let drops = filter_drops(chat_text.split('\n').map(|s| s.to_string()).collect());
@@ -409,13 +427,16 @@ impl VM {
         }
     }
 
-    async fn maybe_get_named_window(&self, window: &DynamicWindow, name: &str) -> Option<DynamicWindow> {
-        if window.name().unwrap_or_default() == name { return Some(window.clone()); }
-        let children = window.children().ok()?;
-        for child in children {
-            if let Some(found) = self.maybe_get_named_window(&child, name).await { return Some(found); }
-        }
-        None
+    fn maybe_get_named_window<'a>(&'a self, window: &'a DynamicWindow, name: &'a str) -> Pin<Box<dyn Future<Output = Option<DynamicWindow>> + Send + 'a>> {
+        let name_owned = name.to_string();
+        Box::pin(async move {
+            if window.name().unwrap_or_default() == name_owned { return Some(window.clone()); }
+            let children = window.children().ok()?;
+            for child in children {
+                if let Some(found) = self.maybe_get_named_window(&child, &name_owned).await { return Some(found); }
+            }
+            None
+        })
     }
 
     async fn select_friend_from_list_vm(&self, client: &Client, name: &str) -> bool {
@@ -428,210 +449,215 @@ impl VM {
                  sleep(Duration::from_millis(400)).await;
             } else { return false; }
         }
-        teleport_to_friend_from_list(client, Some(name), None, None).await.is_ok()
+        teleport_to_friend_from_list(client, None, None, Some(name.to_string())).await.is_ok()
     }
 
-    async fn eval_command_expression(&mut self, cmd: &Command) -> Result<DeimosValue, String> {
-        let selector = cmd.player_selector.as_ref().ok_or("Command expression requires a player selector")?;
-        
-        let expr_kind_val = if let Expression::Number(n) = &**cmd.data[0] {
-             *n as i32
-        } else {
-             -1
-        };
+    pub fn eval_command_expression<'a>(&'a mut self, cmd: &'a Command) -> Pin<Box<dyn Future<Output = Result<DeimosValue, String>> + Send + 'a>> {
+        let selector = cmd.player_selector.clone();
+        let cmd_data_0 = cmd.data[0].clone();
+        let cmd_data = cmd.data.clone();
 
-        match expr_kind_val {
-            // constant_check (38)
-            38 => {
-                 let constant_name = self.eval(&cmd.data[1], None).await?.to_string();
-                 let expected_value = self.eval(&cmd.data[2], None).await?;
-                 if let Some(actual_value) = self.constants.get(&constant_name) {
-                     let mut final_actual = actual_value.clone();
-                     if let (DeimosValue::Bool(_), DeimosValue::String(s)) = (&expected_value, &actual_value) {
-                         if s.to_lowercase() == "true" { final_actual = DeimosValue::Bool(true); }
-                         else if s.to_lowercase() == "false" { final_actual = DeimosValue::Bool(false); }
+        Box::pin(async move {
+            let selector = selector.as_ref().ok_or("Command expression requires a player selector")?;
+
+            let expr_kind_val = if let Expression::Number(n) = &*cmd_data_0 {
+                 *n as i32
+            } else {
+                 -1
+            };
+
+            match expr_kind_val {
+                // constant_check (38)
+                38 => {
+                     let constant_name = self.eval(&cmd_data[1], None).await?.to_string();
+                     let expected_value = self.eval(&cmd_data[2], None).await?;
+                     if let Some(actual_value) = self.constants.get(&constant_name) {
+                         let mut final_actual = actual_value.clone();
+                         if let (DeimosValue::Bool(_), DeimosValue::String(s)) = (&expected_value, &actual_value) {
+                             if s.to_lowercase() == "true" { final_actual = DeimosValue::Bool(true); }
+                             else if s.to_lowercase() == "false" { final_actual = DeimosValue::Bool(false); }
+                         }
+                         return Ok(DeimosValue::Bool(final_actual == expected_value));
                      }
-                     return Ok(DeimosValue::Bool(final_actual == expected_value));
-                 }
-                 return Ok(DeimosValue::Bool(false));
-            }
-            // zone_changed (37)
-            37 => {
-                let mut expected_zone = None;
-                if cmd.data.len() > 1 {
-                    expected_zone = Some(self.eval(&cmd.data[1], None).await?.to_string());
+                     return Ok(DeimosValue::Bool(false));
                 }
-                if selector.any_player {
-                    self.any_player_client.clear();
-                    let mut found_any = false;
-                    for i in 0..self.clients.len() {
-                        let current_zone = self.clients[i].zone_name().unwrap_or_default();
-                        let last_zone = self.logged_data["zone"].get(&self.clients[i].title);
-                        if let Some(expected) = &expected_zone {
-                            if current_zone.to_lowercase() == expected.to_lowercase() {
-                                self.any_player_client.push(i);
-                                self.logged_data.get_mut("zone").unwrap().insert(self.clients[i].title.clone(), current_zone);
-                                found_any = true;
-                            }
-                        } else {
-                            if let Some(last) = last_zone {
-                                if current_zone.to_lowercase() != last.to_lowercase() {
-                                    self.any_player_client.push(i);
-                                    self.logged_data.get_mut("zone").unwrap().insert(self.clients[i].title.clone(), current_zone.to_lowercase());
+                // zone_changed (37)
+                37 => {
+                    let mut expected_zone = None;
+                    if cmd_data.len() > 1 {
+                        expected_zone = Some(self.eval(&cmd_data[1], None).await?.to_string());
+                    }
+                    if selector.any_player {
+                        self.any_player_client.clear();
+                        let mut found_any = false;
+                        for i in 0..self.clients.len() {
+                            let current_zone = self.clients[i].zone_name().unwrap_or_default();
+                            let last_zone = self.logged_data["zone"].get(&self.clients[i].title());
+                            if let Some(expected) = &expected_zone {
+                                if current_zone.to_lowercase() == expected.to_lowercase() {
+                                // self.any_player_client.push(i);
+                                // self.logged_data.get_mut("zone").unwrap().insert(self.clients[i].title().clone(), current_zone);
                                     found_any = true;
                                 }
                             } else {
-                                self.logged_data.get_mut("zone").unwrap().insert(self.clients[i].title.clone(), current_zone.to_lowercase());
-                            }
-                        }
-                    }
-                    Ok(DeimosValue::Bool(found_any))
-                } else {
-                    let indices = self.select_players(selector);
-                    let mut all_valid = true;
-                    for i in indices {
-                        let current_zone = self.clients[i].zone_name().unwrap_or_default();
-                        let last_zone = self.logged_data["zone"].get(&self.clients[i].title);
-                        if let Some(expected) = &expected_zone {
-                            if current_zone.to_lowercase() != expected.to_lowercase() {
-                                all_valid = false;
-                                break;
-                            }
-                            self.logged_data.get_mut("zone").unwrap().insert(self.clients[i].title.clone(), current_zone);
-                        } else {
-                            if let Some(last) = last_zone {
-                                if current_zone.to_lowercase() == last.to_lowercase() {
-                                    all_valid = false;
+                                if let Some(last) = last_zone {
+                                    if current_zone.to_lowercase() != last.to_lowercase() {
+                                    // self.any_player_client.push(i);
+                                    // self.logged_data.get_mut("zone").unwrap().insert(self.clients[i].title().clone(), current_zone.to_lowercase());
+                                        found_any = true;
+                                    }
                                 } else {
-                                    self.logged_data.get_mut("zone").unwrap().insert(self.clients[i].title.clone(), current_zone.to_lowercase());
+                                    self.logged_data.get_mut("zone").unwrap().insert(self.clients[i].title().clone(), current_zone.to_lowercase());
                                 }
-                            } else {
-                                self.logged_data.get_mut("zone").unwrap().insert(self.clients[i].title.clone(), current_zone.to_lowercase());
-                                all_valid = false;
                             }
                         }
-                    }
-                    Ok(DeimosValue::Bool(all_valid))
-                }
-            }
-            // goal_changed (35)
-            35 => {
-                let mut expected_goal = None;
-                if cmd.data.len() > 1 {
-                    expected_goal = Some(self.eval(&cmd.data[1], None).await?.to_string().to_lowercase());
-                }
-                if selector.any_player {
-                    self.any_player_client.clear();
-                    let mut found_any = false;
-                    for i in 0..self.clients.len() {
-                        let current_goal = self.fetch_tracked_goal_text(&self.clients[i]).await;
-                        let last_goal = self.logged_data["goal"].get(&self.clients[i].title);
-                        if let Some(expected) = &expected_goal {
-                            if current_goal == *expected {
-                                self.any_player_client.push(i);
-                                self.logged_data.get_mut("goal").unwrap().insert(self.clients[i].title.clone(), current_goal);
-                                found_any = true;
-                            }
-                        } else {
-                            if let Some(last) = last_goal {
-                                if current_goal != *last {
-                                    self.any_player_client.push(i);
-                                    self.logged_data.get_mut("goal").unwrap().insert(self.clients[i].title.clone(), current_goal);
-                                    found_any = true;
-                                }
-                            } else {
-                                self.logged_data.get_mut("goal").unwrap().insert(self.clients[i].title.clone(), current_goal);
-                            }
-                        }
-                    }
-                    Ok(DeimosValue::Bool(found_any))
-                } else {
-                    let indices = self.select_players(selector);
-                    let mut all_valid = true;
-                    for i in indices {
-                        let current_goal = self.fetch_tracked_goal_text(&self.clients[i]).await;
-                        let last_goal = self.logged_data["goal"].get(&self.clients[i].title);
-                        if let Some(expected) = &expected_goal {
-                            if current_goal != *expected {
-                                all_valid = false;
-                                break;
-                            }
-                            self.logged_data.get_mut("goal").unwrap().insert(self.clients[i].title.clone(), current_goal);
-                        } else {
-                            if let Some(last) = last_goal {
-                                if current_goal == *last {
+                        Ok(DeimosValue::Bool(found_any))
+                    } else {
+                        let indices = self.select_players(selector);
+                        let mut all_valid = true;
+                        for i in indices {
+                            let current_zone = self.clients[i].zone_name().unwrap_or_default();
+                            let last_zone = self.logged_data["zone"].get(&self.clients[i].title());
+                            if let Some(expected) = &expected_zone {
+                                if current_zone.to_lowercase() != expected.to_lowercase() {
                                     all_valid = false;
-                                } else {
-                                    self.logged_data.get_mut("goal").unwrap().insert(self.clients[i].title.clone(), current_goal);
+                                    break;
                                 }
+                                self.logged_data.get_mut("zone").unwrap().insert(self.clients[i].title().clone(), current_zone);
                             } else {
-                                self.logged_data.get_mut("goal").unwrap().insert(self.clients[i].title.clone(), current_goal);
-                                all_valid = false;
+                                if let Some(last) = last_zone {
+                                    if current_zone.to_lowercase() == last.to_lowercase() {
+                                        all_valid = false;
+                                    } else {
+                                        self.logged_data.get_mut("zone").unwrap().insert(self.clients[i].title().clone(), current_zone.to_lowercase());
+                                    }
+                                } else {
+                                    self.logged_data.get_mut("zone").unwrap().insert(self.clients[i].title().clone(), current_zone.to_lowercase());
+                                    all_valid = false;
+                                }
                             }
                         }
+                        Ok(DeimosValue::Bool(all_valid))
                     }
-                    Ok(DeimosValue::Bool(all_valid))
                 }
-            }
-            // quest_changed (36)
-            36 => {
-                let mut expected_quest = None;
-                if cmd.data.len() > 1 {
-                    expected_quest = Some(self.eval(&cmd.data[1], None).await?.to_string().to_lowercase());
-                }
-                if selector.any_player {
-                    self.any_player_client.clear();
-                    let mut found_any = false;
-                    for i in 0..self.clients.len() {
-                        let current_quest = self.fetch_tracked_quest_text(&self.clients[i]).await.unwrap_or_default();
-                        let last_quest = self.logged_data["quest"].get(&self.clients[i].title);
-                        if let Some(expected) = &expected_quest {
-                             if current_quest == *expected && last_quest.map_or(true, |l| current_quest != *l) {
-                                 self.any_player_client.push(i);
-                                 self.logged_data.get_mut("quest").unwrap().insert(self.clients[i].title.clone(), current_quest);
-                                 found_any = true;
-                             }
-                        } else {
-                            if let Some(last) = last_quest {
-                                if current_quest != *last {
+                // goal_changed (35)
+                35 => {
+                    let mut expected_goal = None;
+                    if cmd_data.len() > 1 {
+                        expected_goal = Some(self.eval(&cmd_data[1], None).await?.to_string().to_lowercase());
+                    }
+                    if selector.any_player {
+                        self.any_player_client.clear();
+                        let mut found_any = false;
+                        for i in 0..self.clients.len() {
+                            let current_goal = self.fetch_tracked_goal_text(&self.clients[i]).await;
+                            let last_goal = self.logged_data["goal"].get(&self.clients[i].title());
+                            if let Some(expected) = &expected_goal {
+                                if current_goal == *expected {
                                     self.any_player_client.push(i);
-                                    self.logged_data.get_mut("quest").unwrap().insert(self.clients[i].title.clone(), current_quest);
+                                    self.logged_data.get_mut("goal").unwrap().insert(self.clients[i].title().clone(), current_goal);
                                     found_any = true;
                                 }
                             } else {
-                                self.logged_data.get_mut("quest").unwrap().insert(self.clients[i].title.clone(), current_quest);
+                                if let Some(last) = last_goal {
+                                    if current_goal != *last {
+                                        self.any_player_client.push(i);
+                                        self.logged_data.get_mut("goal").unwrap().insert(self.clients[i].title().clone(), current_goal);
+                                        found_any = true;
+                                    }
+                                } else {
+                                    self.logged_data.get_mut("goal").unwrap().insert(self.clients[i].title().clone(), current_goal);
+                                }
                             }
                         }
-                    }
-                    Ok(DeimosValue::Bool(found_any))
-                } else {
-                    let indices = self.select_players(selector);
-                    let mut all_valid = true;
-                    for i in indices {
-                        let current_quest = self.fetch_tracked_quest_text(&self.clients[i]).await.unwrap_or_default();
-                        let last_quest = self.logged_data["quest"].get(&self.clients[i].title);
-                        if let Some(expected) = &expected_quest {
-                            if current_quest != *expected || last_quest.map_or(false, |l| current_quest == *l) {
-                                all_valid = false;
-                                break;
-                            }
-                            self.logged_data.get_mut("quest").unwrap().insert(self.clients[i].title.clone(), current_quest);
-                        } else {
-                            if let Some(last) = last_quest {
-                                if current_quest == *last { all_valid = false; }
-                                else { self.logged_data.get_mut("quest").unwrap().insert(self.clients[i].title.clone(), current_quest); }
+                        Ok(DeimosValue::Bool(found_any))
+                    } else {
+                        let indices = self.select_players(selector);
+                        let mut all_valid = true;
+                        for i in indices {
+                            let current_goal = self.fetch_tracked_goal_text(&self.clients[i]).await;
+                            let last_goal = self.logged_data["goal"].get(&self.clients[i].title());
+                            if let Some(expected) = &expected_goal {
+                                if current_goal != *expected {
+                                    all_valid = false;
+                                    break;
+                                }
+                                self.logged_data.get_mut("goal").unwrap().insert(self.clients[i].title().clone(), current_goal);
                             } else {
-                                self.logged_data.get_mut("quest").unwrap().insert(self.clients[i].title.clone(), current_quest);
-                                all_valid = false;
+                                if let Some(last) = last_goal {
+                                    if current_goal == *last {
+                                        all_valid = false;
+                                    } else {
+                                        self.logged_data.get_mut("goal").unwrap().insert(self.clients[i].title().clone(), current_goal);
+                                    }
+                                } else {
+                                    self.logged_data.get_mut("goal").unwrap().insert(self.clients[i].title().clone(), current_goal);
+                                    all_valid = false;
+                                }
                             }
                         }
+                        Ok(DeimosValue::Bool(all_valid))
                     }
-                    Ok(DeimosValue::Bool(all_valid))
                 }
-            }
+                // quest_changed (36)
+                36 => {
+                    let mut expected_quest = None;
+                    if cmd_data.len() > 1 {
+                        expected_quest = Some(self.eval(&cmd_data[1], None).await?.to_string().to_lowercase());
+                    }
+                    if selector.any_player {
+                        self.any_player_client.clear();
+                        let mut found_any = false;
+                        for i in 0..self.clients.len() {
+                        let current_quest = self.fetch_tracked_quest_text(i).await.unwrap_or_default();
+                            let last_quest = self.logged_data["quest"].get(&self.clients[i].title());
+                            if let Some(expected) = &expected_quest {
+                                 if current_quest == *expected && last_quest.map_or(true, |l| current_quest != *l) {
+                                     self.any_player_client.push(i);
+                                     self.logged_data.get_mut("quest").unwrap().insert(self.clients[i].title().clone(), current_quest);
+                                     found_any = true;
+                                 }
+                            } else {
+                                if let Some(last) = last_quest {
+                                    if current_quest != *last {
+                                        self.any_player_client.push(i);
+                                        self.logged_data.get_mut("quest").unwrap().insert(self.clients[i].title().clone(), current_quest);
+                                        found_any = true;
+                                    }
+                                } else {
+                                    self.logged_data.get_mut("quest").unwrap().insert(self.clients[i].title().clone(), current_quest);
+                                }
+                            }
+                        }
+                        Ok(DeimosValue::Bool(found_any))
+                    } else {
+                        let indices = self.select_players(selector);
+                        let mut all_valid = true;
+                        for i in indices {
+                        let current_quest = self.fetch_tracked_quest_text(i).await.unwrap_or_default();
+                            let last_quest = self.logged_data["quest"].get(&self.clients[i].title());
+                            if let Some(expected) = &expected_quest {
+                                if current_quest != *expected || last_quest.map_or(false, |l| current_quest == *l) {
+                                    all_valid = false;
+                                    break;
+                                }
+                                self.logged_data.get_mut("quest").unwrap().insert(self.clients[i].title().clone(), current_quest);
+                            } else {
+                                if let Some(last) = last_quest {
+                                    if current_quest == *last { all_valid = false; }
+                                    else { self.logged_data.get_mut("quest").unwrap().insert(self.clients[i].title().clone(), current_quest); }
+                                } else {
+                                    self.logged_data.get_mut("quest").unwrap().insert(self.clients[i].title().clone(), current_quest);
+                                    all_valid = false;
+                                }
+                            }
+                        }
+                        Ok(DeimosValue::Bool(all_valid))
+                    }
+                }
             // duel_round (34)
             34 => {
-                let expected_round = self.eval(&cmd.data[1], None).await?.to_i32();
+                let expected_round = self.eval(&cmd_data[1], None).await?.to_i32();
                 if selector.any_player {
                     self.any_player_client.clear();
                     let mut found_any = false;
@@ -652,7 +678,7 @@ impl VM {
             }
             // items_dropped (33)
             33 => {
-                 let item_name = self.eval(&cmd.data[1], None).await?.to_string();
+                 let item_name = self.eval(&cmd_data[1], None).await?.to_string();
                  if selector.any_player {
                      self.any_player_client.clear();
                      let mut found_any = false;
@@ -673,7 +699,7 @@ impl VM {
             }
             // window_visible (0)
             0 => {
-                 let path_val = self.eval(&cmd.data[1], None).await?;
+                 let path_val = self.eval(&cmd_data[1], None).await?;
                  if let DeimosValue::List(l) = path_val {
                      let path: Vec<String> = l.into_iter().map(|v| v.to_string()).collect();
                      let path_refs: Vec<&str> = path.iter().map(|s| s.as_str()).collect();
@@ -698,7 +724,7 @@ impl VM {
             }
             // window_disabled (26)
             26 => {
-                 let path_val = self.eval(&cmd.data[1], None).await?;
+                 let path_val = self.eval(&cmd_data[1], None).await?;
                  if let DeimosValue::List(l) = path_val {
                      let path: Vec<String> = l.into_iter().map(|v| v.to_string()).collect();
                      let path_refs: Vec<&str> = path.iter().map(|s| s.as_str()).collect();
@@ -731,31 +757,31 @@ impl VM {
                      }
                  } else { Ok(DeimosValue::Bool(false)) }
             }
-            // in_range (28)
-            28 => {
-                 let target = self.eval(&cmd.data[1], None).await?.to_string().to_lowercase();
-                 if selector.any_player {
-                     self.any_player_client.clear();
-                     let mut found_any = false;
-                     for i in 0..self.clients.len() {
-                         let sprinty = SprintyClient::new(&self.clients[i]);
-                         let entities = sprinty.get_base_entity_list();
-                         if entities.iter().any(|e| e.object_name.to_lowercase().contains(&target)) {
-                             self.any_player_client.push(i);
-                             found_any = true;
+                // in_range (28)
+                28 => {
+                     let target = self.eval(&cmd_data[1], None).await?.to_string().to_lowercase();
+                     if selector.any_player {
+                         self.any_player_client.clear();
+                         let mut found_any = false;
+                         for i in 0..self.clients.len() {
+                             let sprinty = SprintyClient::new(&self.clients[i]);
+                             let entities = sprinty.get_base_entity_list(None);
+                             if entities.iter().any(|e| e.object_name.to_lowercase().contains(&target)) {
+                                 self.any_player_client.push(i);
+                                 found_any = true;
+                             }
                          }
+                         Ok(DeimosValue::Bool(found_any))
+                     } else {
+                         let indices = self.select_players(selector);
+                         for i in indices {
+                             let sprinty = SprintyClient::new(&self.clients[i]);
+                             let entities = sprinty.get_base_entity_list(None);
+                             if !entities.iter().any(|e| e.object_name.to_lowercase().contains(&target)) { return Ok(DeimosValue::Bool(false)); }
+                         }
+                         Ok(DeimosValue::Bool(true))
                      }
-                     Ok(DeimosValue::Bool(found_any))
-                 } else {
-                     let indices = self.select_players(selector);
-                     for i in indices {
-                         let sprinty = SprintyClient::new(&self.clients[i]);
-                         let entities = sprinty.get_base_entity_list();
-                         if !entities.iter().any(|e| e.object_name.to_lowercase().contains(&target)) { return Ok(DeimosValue::Bool(false)); }
-                     }
-                     Ok(DeimosValue::Bool(true))
-                 }
-            }
+                }
             // same_place (27)
             27 => {
                  let indices = self.select_players(selector);
@@ -764,7 +790,7 @@ impl VM {
             }
             // in_zone (1)
             1 => {
-                 let expected = self.eval(&cmd.data[1], None).await?.to_string();
+                 let expected = self.eval(&cmd_data[1], None).await?.to_string();
                  if selector.any_player {
                      self.any_player_client.clear();
                      let mut found_any = false;
@@ -794,10 +820,10 @@ impl VM {
             30 => {
                 let indices = self.select_players(selector);
                 if indices.is_empty() { return Ok(DeimosValue::Bool(true)); }
-                let first_quest = self.fetch_tracked_quest_text(&self.clients[indices[0]]).await.unwrap_or_default();
+                let first_quest = self.fetch_tracked_quest_text(indices[0]).await.unwrap_or_default();
                 let mut all_same = true;
                 for &i in &indices[1..] {
-                    if self.fetch_tracked_quest_text(&self.clients[i]).await.unwrap_or_default() != first_quest {
+                    if self.fetch_tracked_quest_text(i).await.unwrap_or_default() != first_quest {
                         all_same = false;
                         break;
                     }
@@ -806,17 +832,17 @@ impl VM {
             }
             // playercount (3)
             3 => {
-                 let expected = self.eval(&cmd.data[1], None).await?.to_i32();
+                 let expected = self.eval(&cmd_data[1], None).await?.to_i32();
                  Ok(DeimosValue::Bool(self.clients.len() as i32 == expected))
             }
             // tracking_quest (4)
             4 => {
-                 let expected = self.eval(&cmd.data[1], None).await?.to_string().to_lowercase();
+                 let expected = self.eval(&cmd_data[1], None).await?.to_string().to_lowercase();
                  if selector.any_player {
                      self.any_player_client.clear();
                      let mut found_any = false;
                      for i in 0..self.clients.len() {
-                         if self.fetch_tracked_quest_text(&self.clients[i]).await.unwrap_or_default() == expected {
+                         if self.fetch_tracked_quest_text(i).await.unwrap_or_default() == expected {
                              self.any_player_client.push(i);
                              found_any = true;
                          }
@@ -825,14 +851,14 @@ impl VM {
                  } else {
                      let indices = self.select_players(selector);
                      for i in indices {
-                         if self.fetch_tracked_quest_text(&self.clients[i]).await.unwrap_or_default() != expected { return Ok(DeimosValue::Bool(false)); }
+                         if self.fetch_tracked_quest_text(i).await.unwrap_or_default() != expected { return Ok(DeimosValue::Bool(false)); }
                      }
                      Ok(DeimosValue::Bool(true))
                  }
             }
             // tracking_goal (5)
             5 => {
-                 let expected = self.eval(&cmd.data[1], None).await?.to_string().to_lowercase();
+                 let expected = self.eval(&cmd_data[1], None).await?.to_string().to_lowercase();
                  if selector.any_player {
                      self.any_player_client.clear();
                      let mut found_any = false;
@@ -913,7 +939,7 @@ impl VM {
             }
             // has_xyz (9)
             9 => {
-                 let target = self.eval(&cmd.data[1], None).await?.to_xyz().unwrap_or_default();
+                 let target = self.eval(&cmd_data[1], None).await?.to_xyz().unwrap_or_default();
                  if selector.any_player {
                      self.any_player_client.clear();
                      let mut found_any = false;
@@ -934,14 +960,14 @@ impl VM {
             }
             // has_quest (10)
             10 => {
-                 let expected = self.eval(&cmd.data[1], None).await?.to_string().to_lowercase();
+                 let expected = self.eval(&cmd_data[1], None).await?.to_string().to_lowercase();
                  if selector.any_player {
                      self.any_player_client.clear();
                      let mut found_any = false;
                      for i in 0..self.clients.len() {
-                         let quests = self.fetch_quests(&self.clients[i]).await.unwrap_or_default();
+                         let quests = self.fetch_quests(i).await.unwrap_or_default();
                          for (_, q) in quests {
-                             if self.fetch_quest_text(&self.clients[i], &q).await.unwrap_or_default() == expected {
+                             if self.fetch_quest_text(i, &q).await.unwrap_or_default() == expected {
                                  self.any_player_client.push(i);
                                  found_any = true;
                                  break;
@@ -952,10 +978,10 @@ impl VM {
                  } else {
                      let indices = self.select_players(selector);
                      for i in indices {
-                         let quests = self.fetch_quests(&self.clients[i]).await.unwrap_or_default();
+                         let quests = self.fetch_quests(i).await.unwrap_or_default();
                          let mut found = false;
                          for (_, q) in quests {
-                             if self.fetch_quest_text(&self.clients[i], &q).await.unwrap_or_default() == expected {
+                             if self.fetch_quest_text(i, &q).await.unwrap_or_default() == expected {
                                  found = true;
                                  break;
                              }
@@ -981,7 +1007,7 @@ impl VM {
             }
             // has_yaw (32)
             32 => {
-                let expected_yaw = (self.eval(&cmd.data[1], None).await?.to_f64() * 10.0).round() / 10.0;
+                let expected_yaw = (self.eval(&cmd_data[1], None).await?.to_f64() * 10.0).round() / 10.0;
                 if selector.any_player {
                     self.any_player_client.clear();
                     let mut found_any = false;
@@ -1002,11 +1028,13 @@ impl VM {
                     Ok(DeimosValue::Bool(true))
                 }
             }
-            _ => Ok(DeimosValue::Bool(false))
-        }
+                _ => Ok(DeimosValue::Bool(false))
+            }
+        })
     }
 
-    pub fn eval<'a>(&'a mut self, expression: &'a Expression, client: Option<&'a Client>) -> Pin<Box<dyn Future<Output = Result<DeimosValue, String>> + 'a>> {
+    pub fn eval<'a>(&'a mut self, expression: &'a Expression, client_idx: Option<usize>) -> Pin<Box<dyn Future<Output = Result<DeimosValue, String>> + Send + 'a>> {
+        let expression = expression.clone();
         Box::pin(async move {
             match expression {
                 Expression::Ident(ident) => {
@@ -1016,23 +1044,23 @@ impl VM {
                             return Ok(val.clone());
                         }
                     }
-                    if let Some(val) = self.constants.get(ident) {
+                    if let Some(val) = self.constants.get(&ident) {
                         return Ok(val.clone());
                     }
                     Ok(DeimosValue::String(ident.clone()))
                 }
                 Expression::ConstantReference(name) => {
-                    if let Some(val) = self.constants.get(name) {
+                    if let Some(val) = self.constants.get(&name) {
                         Ok(val.clone())
                     } else {
                         Err(format!("Unknown constant: ${}", name))
                     }
                 }
                 Expression::ConstantCheck(name, value_expr) => {
-                    if let Some(actual_value) = self.constants.get(name) {
-                        let expected_value = self.eval(value_expr, client).await?;
-                        let mut final_actual = actual_value.clone();
-                        if let (DeimosValue::Bool(_), DeimosValue::String(s)) = (&expected_value, &actual_value) {
+                    if let Some(actual_value) = self.constants.get(&name).cloned() {
+                        let expected_value = self.eval(&value_expr, client_idx).await?;
+                        let mut final_actual = actual_value;
+                        if let (DeimosValue::Bool(_), DeimosValue::String(s)) = (&expected_value, &final_actual) {
                              if s.to_lowercase() == "true" { final_actual = DeimosValue::Bool(true); }
                              else if s.to_lowercase() == "false" { final_actual = DeimosValue::Bool(false); }
                         }
@@ -1043,7 +1071,7 @@ impl VM {
                 }
                 Expression::And(exprs) => {
                     for e in exprs {
-                        if !self.eval(e, client).await?.is_truthy() {
+                        if !self.eval(&e, client_idx).await?.is_truthy() {
                             return Ok(DeimosValue::Bool(false));
                         }
                     }
@@ -1051,55 +1079,55 @@ impl VM {
                 }
                 Expression::Or(exprs) => {
                     for e in exprs {
-                        if self.eval(e, client).await?.is_truthy() {
+                        if self.eval(&e, client_idx).await?.is_truthy() {
                             return Ok(DeimosValue::Bool(true));
                         }
                     }
                     Ok(DeimosValue::Bool(false))
                 }
-                Expression::Number(n) => Ok(DeimosValue::Number(*n)),
+                Expression::Number(n) => Ok(DeimosValue::Number(n)),
                 Expression::String(s) => Ok(DeimosValue::String(s.clone())),
                 Expression::Sub(lhs, rhs) => {
-                    let l = self.eval(lhs, client).await?.to_f64();
-                    let r = self.eval(rhs, client).await?.to_f64();
+                    let l = self.eval(&lhs, client_idx).await?.to_f64();
+                    let r = self.eval(&rhs, client_idx).await?.to_f64();
                     Ok(DeimosValue::Number(l - r))
                 }
                 Expression::Divide(lhs, rhs) => {
-                    let l = self.eval(lhs, client).await?.to_f64();
-                    let r = self.eval(rhs, client).await?.to_f64();
+                    let l = self.eval(&lhs, client_idx).await?.to_f64();
+                    let r = self.eval(&rhs, client_idx).await?.to_f64();
                     if r == 0.0 { return Ok(DeimosValue::Number(0.0)); }
                     Ok(DeimosValue::Number(l / r))
                 }
                 Expression::Greater(lhs, rhs) => {
-                    let l = self.eval(lhs, client).await?;
-                    let r = self.eval(rhs, client).await?;
+                    let l = self.eval(&lhs, client_idx).await?;
+                    let r = self.eval(&rhs, client_idx).await?;
                     let lv = if let DeimosValue::List(ref list) = l { list.first().cloned().unwrap_or(DeimosValue::Number(0.0)) } else { l };
                     let rv = if let DeimosValue::List(ref list) = r { list.first().cloned().unwrap_or(DeimosValue::Number(0.0)) } else { r };
                     Ok(DeimosValue::Bool(lv.to_f64() > rv.to_f64()))
                 }
                 Expression::Equivalent(lhs, rhs) => {
-                    let l = self.eval(lhs, client).await?;
-                    let r = self.eval(rhs, client).await?;
+                    let l = self.eval(&lhs, client_idx).await?;
+                    let r = self.eval(&rhs, client_idx).await?;
                     let lv = if let DeimosValue::List(ref list) = l { list.first().cloned().unwrap_or(DeimosValue::Number(0.0)) } else { l };
                     let rv = if let DeimosValue::List(ref list) = r { list.first().cloned().unwrap_or(DeimosValue::Number(0.0)) } else { r };
                     Ok(DeimosValue::Bool(lv == rv))
                 }
                 Expression::CommandExpr(cmd) => {
-                    self.eval_command_expression(cmd).await
+                    self.eval_command_expression(&cmd).await
                 }
                 Expression::XYZ(x_expr, y_expr, z_expr) => {
-                    let x = self.eval(x_expr, client).await?.to_f64() as f32;
-                    let y = self.eval(y_expr, client).await?.to_f64() as f32;
-                    let z = self.eval(z_expr, client).await?.to_f64() as f32;
+                    let x = self.eval(&x_expr, client_idx).await?.to_f64() as f32;
+                    let y = self.eval(&y_expr, client_idx).await?.to_f64() as f32;
+                    let z = self.eval(&z_expr, client_idx).await?.to_f64() as f32;
                     Ok(DeimosValue::XYZ(XYZ { x, y, z }))
                 }
                 Expression::Unary(op, expr) => {
-                    let val = self.eval(expr, client).await?;
+                    let val = self.eval(&expr, client_idx).await?;
                     match op.kind {
                         TokenKind::minus => Ok(DeimosValue::Number(-val.to_f64())),
                         TokenKind::keyword_not => {
                              let res = !val.is_truthy();
-                             if let Expression::CommandExpr(cmd) = expr {
+                             if let Expression::CommandExpr(ref cmd) = *expr {
                                  if cmd.player_selector.as_ref().map_or(false, |s| s.any_player) {
                                      let current_matches = self.any_player_client.clone();
                                      self.any_player_client = (0..self.clients.len())
@@ -1113,15 +1141,15 @@ impl VM {
                     }
                 }
                 Expression::Eval(kind, args) => {
-                    self.eval_expression_builtin(*kind, args, client).await
+                    self.eval_expression_builtin(kind, &args, client_idx).await
                 }
                 Expression::SelectorGroup(selector, expr) => {
-                    let indices = self.select_players(selector);
+                    let indices = self.select_players(&selector);
                     if selector.any_player {
                         self.any_player_client.clear();
                         let mut found_any = false;
                         for i in 0..self.clients.len() {
-                            let res = self.eval(expr, Some(&self.clients[i])).await?;
+                            let res = self.eval(&expr, Some(i)).await?;
                             if res.is_truthy() {
                                 self.any_player_client.push(i);
                                 found_any = true;
@@ -1130,7 +1158,7 @@ impl VM {
                         Ok(DeimosValue::Bool(found_any))
                     } else {
                         for i in indices {
-                            if !self.eval(expr, Some(&self.clients[i])).await?.is_truthy() {
+                            if !self.eval(&expr, Some(i)).await?.is_truthy() {
                                 return Ok(DeimosValue::Bool(false));
                             }
                         }
@@ -1138,7 +1166,7 @@ impl VM {
                     }
                 }
                 Expression::ReadVar(loc_expr) => {
-                    let loc_val = self.eval(loc_expr, client).await?;
+                    let loc_val = self.eval(&loc_expr, client_idx).await?;
                     let loc = loc_val.to_f64() as usize;
                     let task = self.scheduler.get_current_task();
                     if loc < task.stack.len() {
@@ -1147,11 +1175,11 @@ impl VM {
                         Ok(DeimosValue::None)
                     }
                 }
-                Expression::StackLoc(offset) => Ok(DeimosValue::Number(*offset as f64)),
+                Expression::StackLoc(offset) => Ok(DeimosValue::Number(offset as f64)),
                 Expression::List(items) => {
                     let mut res = Vec::new();
                     for item in items {
-                        let val = self.eval(item, client).await?;
+                        let val = self.eval(&item, client_idx).await?;
                         if let DeimosValue::List(l) = val {
                             res.extend(l);
                         } else {
@@ -1161,8 +1189,8 @@ impl VM {
                     Ok(DeimosValue::List(res))
                 }
                 Expression::ContainsString(lhs, rhs) => {
-                    let l = self.eval(lhs, client).await?.to_string();
-                    let r = self.eval(rhs, client).await?;
+                    let l = self.eval(&lhs, client_idx).await?.to_string();
+                    let r = self.eval(&rhs, client_idx).await?;
                     if let DeimosValue::List(list) = r {
                         Ok(DeimosValue::Bool(list.iter().any(|item| l.contains(&item.to_string()))))
                     } else {
@@ -1170,25 +1198,25 @@ impl VM {
                     }
                 }
                 Expression::Key(k) => {
-                    if let Some(kc) = self.string_to_keycode(k) {
+                    if let Some(kc) = self.string_to_keycode(&k) {
                         Ok(DeimosValue::Keycode(kc))
                     } else {
                         Ok(DeimosValue::String(k.clone()))
                     }
                 }
                 Expression::RangeMin(expr) => {
-                    let range_str = self.eval(expr, client).await?.to_string();
+                    let range_str = self.eval(&expr, client_idx).await?.to_string();
                     let min_val = range_str.split('-').next().unwrap_or("0").parse::<f64>().unwrap_or(0.0);
                     Ok(DeimosValue::Number(min_val))
                 }
                 Expression::RangeMax(expr) => {
-                    let range_str = self.eval(expr, client).await?.to_string();
+                    let range_str = self.eval(&expr, client_idx).await?.to_string();
                     let max_val = range_str.split('-').nth(1).unwrap_or("0").parse::<f64>().unwrap_or(0.0);
                     Ok(DeimosValue::Number(max_val))
                 }
                 Expression::IndexAccess(expr, index_expr) => {
-                    let container = self.eval(expr, client).await?;
-                    let index = self.eval(index_expr, client).await?.to_f64() as usize;
+                    let container = self.eval(&expr, client_idx).await?;
+                    let index = self.eval(&index_expr, client_idx).await?.to_f64() as usize;
                     if let DeimosValue::List(l) = container {
                         Ok(l.get(index).cloned().unwrap_or(DeimosValue::Number(0.0)))
                     } else {
@@ -1198,7 +1226,7 @@ impl VM {
                 Expression::StrFormat(fmt, args) => {
                     let mut final_str = fmt.clone();
                     for arg in args {
-                        let val = self.eval(arg, client).await?.to_string();
+                        let val = self.eval(&arg, client_idx).await?.to_string();
                         if let Some(pos) = final_str.find('%') {
                             final_str.replace_range(pos..pos+1, &val);
                         }
@@ -1210,40 +1238,40 @@ impl VM {
         })
     }
 
-    async fn eval_expression_builtin(&mut self, kind: EvalKind, args: &[Box<Expression>], client: Option<&Client>) -> Result<DeimosValue, String> {
-        let client = client.ok_or("Builtin eval requires a client context")?;
+    async fn eval_expression_builtin(&mut self, kind: EvalKind, args: &[Box<Expression>], client_idx: Option<usize>) -> Result<DeimosValue, String> {
+        let client_idx = client_idx.ok_or("Builtin eval requires a client context")?;
         match kind {
-            EvalKind::health => Ok(DeimosValue::Number(client.stats_current_hitpoints().unwrap_or(0) as f64)),
-            EvalKind::max_health => Ok(DeimosValue::Number(client.stats_max_hitpoints().unwrap_or(0) as f64)),
-            EvalKind::mana => Ok(DeimosValue::Number(client.stats_current_mana().unwrap_or(0) as f64)),
-            EvalKind::max_mana => Ok(DeimosValue::Number(client.stats_max_mana().unwrap_or(0) as f64)),
-            EvalKind::energy => Ok(DeimosValue::Number(client.stats_current_energy().unwrap_or(0) as f64)),
-            EvalKind::bagcount => Ok(DeimosValue::Number(client.backpack_space().unwrap_or((0, 0)).0 as f64)),
-            EvalKind::max_bagcount => Ok(DeimosValue::Number(client.backpack_space().unwrap_or((0, 0)).1 as f64)),
-            EvalKind::gold => Ok(DeimosValue::Number(client.stats_current_gold().unwrap_or(0) as f64)),
+            EvalKind::health => Ok(DeimosValue::Number(self.clients[client_idx].stats_current_hitpoints().unwrap_or(0) as f64)),
+            EvalKind::max_health => Ok(DeimosValue::Number(self.clients[client_idx].stats_max_hitpoints().unwrap_or(0) as f64)),
+            EvalKind::mana => Ok(DeimosValue::Number(self.clients[client_idx].stats_current_mana().unwrap_or(0) as f64)),
+            EvalKind::max_mana => Ok(DeimosValue::Number(self.clients[client_idx].stats_max_mana().unwrap_or(0) as f64)),
+            EvalKind::energy => Ok(DeimosValue::Number(self.clients[client_idx].stats_current_energy().unwrap_or(0) as f64)),
+            EvalKind::bagcount => Ok(DeimosValue::Number(self.clients[client_idx].backpack_space().unwrap_or((0, 0)).0 as f64)),
+            EvalKind::max_bagcount => Ok(DeimosValue::Number(self.clients[client_idx].backpack_space().unwrap_or((0, 0)).1 as f64)),
+            EvalKind::gold => Ok(DeimosValue::Number(self.clients[client_idx].stats_current_gold().unwrap_or(0) as f64)),
             EvalKind::playercount => Ok(DeimosValue::Number(self.clients.len() as f64)),
-            EvalKind::potioncount => Ok(DeimosValue::Number(client.stats_potion_charge().unwrap_or(0) as f64)),
-            EvalKind::max_potioncount => Ok(DeimosValue::Number(client.stats_potion_max().unwrap_or(0) as f64)),
+            EvalKind::potioncount => Ok(DeimosValue::Number(self.clients[client_idx].stats_potion_charge().unwrap_or(0.0) as f64)),
+            EvalKind::max_potioncount => Ok(DeimosValue::Number(self.clients[client_idx].stats_potion_max().unwrap_or(0.0) as f64)),
             EvalKind::windowtext => {
-                 let path_val = self.eval(&args[0], Some(client)).await?;
+                 let path_val = self.eval(&args[0], Some(client_idx)).await?;
                  if let DeimosValue::List(l) = path_val {
                      let path: Vec<String> = l.into_iter().map(|v| v.to_string()).collect();
                      let path_refs: Vec<&str> = path.iter().map(|s| s.as_str()).collect();
-                     Ok(DeimosValue::String(text_from_path(client, &path_refs).unwrap_or_default().to_lowercase()))
+                     Ok(DeimosValue::String(text_from_path(&self.clients[client_idx], &path_refs).unwrap_or_default().to_lowercase()))
                  } else {
                      Ok(DeimosValue::String("".into()))
                  }
             }
             EvalKind::windownum => {
-                let path_val = self.eval(&args[0], Some(client)).await?;
+                let path_val = self.eval(&args[0], Some(client_idx)).await?;
                 if let DeimosValue::List(l) = path_val {
                     let path: Vec<String> = l.into_iter().map(|v| v.to_string()).collect();
                     let path_refs: Vec<&str> = path.iter().map(|s| s.as_str()).collect();
-                    let text = text_from_path(client, &path_refs).unwrap_or_default();
+                    let text = text_from_path(&self.clients[client_idx], &path_refs).unwrap_or_default();
                     let nums: Vec<DeimosValue> = text.split('/')
                         .map(|s| {
                             let numeric: String = s.chars().filter(|c| c.is_digit(10) || *c == '.' || *c == '-').collect();
-                            DeimosValue::Number(numeric.parse().unwrap_or(0.0))
+                            DeimosValue::Number(numeric.parse::<f64>().unwrap_or(0.0))
                         })
                         .collect();
                     Ok(DeimosValue::List(nums))
@@ -1253,16 +1281,16 @@ impl VM {
             }
             EvalKind::any_player_list => {
                 let titles: Vec<DeimosValue> = self.any_player_client.iter()
-                    .map(|&i| DeimosValue::String(self.clients[i].title.clone()))
+                    .map(|&i| DeimosValue::String(self.clients[i].title().clone()))
                     .collect();
                 if titles.is_empty() && !self.clients.is_empty() {
-                    Ok(DeimosValue::List(vec![DeimosValue::String(self.clients[0].title.clone())]))
+                    Ok(DeimosValue::List(vec![DeimosValue::String(self.clients[0].title().clone())]))
                 } else {
                     Ok(DeimosValue::List(titles))
                 }
             }
-            EvalKind::account_level => Ok(DeimosValue::Number(client.stats_reference_level().unwrap_or(0) as f64)),
-            EvalKind::duel_round => Ok(DeimosValue::Number(self.check_duel_round(client).await as f64)),
+            EvalKind::account_level => Ok(DeimosValue::Number(self.clients[client_idx].stats_reference_level().unwrap_or(0) as f64)),
+            EvalKind::duel_round => Ok(DeimosValue::Number(self.check_duel_round(&self.clients[client_idx]).await as f64)),
             _ => Ok(DeimosValue::Number(0.0)),
         }
     }
@@ -1273,13 +1301,7 @@ impl VM {
         let command_name = if let InstructionData::String(s) = &data[1] { s } else { return Ok(()); };
         let args_data = if let InstructionData::List(l) = &data[2] { l } else { return Ok(()); };
 
-        let indices = if selector.any_player && !self.any_player_client.is_empty() {
-            self.any_player_client.clone()
-        } else if selector.any_player {
-            if self.clients.is_empty() { vec![] } else { vec![0] }
-        } else {
-            self.select_players(selector)
-        };
+        let indices = self.select_players_any(selector);
 
         if indices.is_empty() { return Ok(()); }
 
@@ -1287,19 +1309,19 @@ impl VM {
             "set_zone" => {
                 for &i in &indices {
                     let zone = self.clients[i].zone_name().unwrap_or_default();
-                    self.logged_data.get_mut("zone").unwrap().insert(self.clients[i].title.clone(), zone);
+                    self.logged_data.get_mut("zone").unwrap().insert(self.clients[i].title().clone(), zone);
                 }
             }
             "set_goal" => {
                 for &i in &indices {
                     let goal = self.fetch_tracked_goal_text(&self.clients[i]).await;
-                    self.logged_data.get_mut("goal").unwrap().insert(self.clients[i].title.clone(), goal);
+                    self.logged_data.get_mut("goal").unwrap().insert(self.clients[i].title().clone(), goal);
                 }
             }
             "set_quest" => {
                 for &i in &indices {
-                    let quest = self.fetch_tracked_quest_text(&self.clients[i]).await.unwrap_or_default();
-                    self.logged_data.get_mut("quest").unwrap().insert(self.clients[i].title.clone(), quest);
+                    let quest = self.fetch_tracked_quest_text(i).await.unwrap_or_default();
+                    self.logged_data.get_mut("quest").unwrap().insert(self.clients[i].title().clone(), quest);
                 }
             }
             "autopet" => {
@@ -1326,9 +1348,9 @@ impl VM {
                 };
                 match tp_kind {
                     TeleportKind::position => {
-                         let pos_expr = if let InstructionData::Expression(e) = &args_data[1] { e } else { return Ok(()); };
+                         let pos_expr = if let InstructionData::Expression(e) = &args_data[1] { e.clone() } else { return Ok(()); };
                          for &i in &indices {
-                             let pos = self.eval(pos_expr, Some(&self.clients[i])).await?.to_xyz().unwrap_or_default();
+                             let pos = self.eval(&pos_expr, Some(i)).await?.to_xyz().unwrap_or_default();
                              let _ = self.clients[i].teleport(&pos);
                          }
                     }
@@ -1339,14 +1361,14 @@ impl VM {
                              use_navmap = true;
                              start_idx = 2;
                          }
-                         let name_expr = if let InstructionData::Expression(e) = &args_data[start_idx] { e } else { return Ok(()); };
-                         let name = self.eval(name_expr, Some(&self.clients[0])).await?.to_string();
+                         let name_expr = if let InstructionData::Expression(e) = &args_data[start_idx] { e.clone() } else { return Ok(()); };
+                         let name = self.eval(&name_expr, Some(0)).await?.to_string();
                          for &i in &indices {
                              let sprinty = SprintyClient::new(&self.clients[i]);
                              let found = if tp_kind == TeleportKind::entity_literal {
-                                 sprinty.get_base_entity_list().into_iter().find(|e| e.object_name == name)
+                                 sprinty.get_base_entity_list(None).into_iter().find(|e| e.object_name == name)
                              } else {
-                                 sprinty.get_entities_with_vague_name(&name).first().cloned()
+                                 sprinty.get_entities_with_vague_name(&name, None).first().cloned()
                              };
                              if let Some(e) = found {
                                  if let Some(pos) = e.location {
@@ -1360,8 +1382,8 @@ impl VM {
                          for &i in &indices {
                              let sprinty = SprintyClient::new(&self.clients[i]);
                              let mobs = sprinty.get_mobs();
-                             if let Some(idx) = sprinty.find_closest_of(&mobs) {
-                                 if let Some(pos) = mobs[idx].location {
+                             if let Some(ent) = sprinty.find_closest_of(&mobs, false) {
+                                 if let Some(pos) = ent.location {
                                      let _ = self.clients[i].teleport(&pos);
                                  }
                              }
@@ -1376,19 +1398,19 @@ impl VM {
                     }
                     TeleportKind::friend_icon => {
                          for &i in &indices {
-                              let _ = teleport_to_friend_from_list(&self.clients[i], None, Some(2), Some(0)).await;
+                              let _ = teleport_to_friend_from_list(&self.clients[i], None, Some(2), None).await;
                          }
                     }
                     TeleportKind::friend_name => {
-                         let name_expr = if let InstructionData::Expression(e) = &args_data[1] { e } else { return Ok(()); };
-                         let name = self.eval(name_expr, Some(&self.clients[0])).await?.to_string();
+                         let name_expr = if let InstructionData::Expression(e) = &args_data[1] { e.clone() } else { return Ok(()); };
+                         let name = self.eval(&name_expr, Some(0)).await?.to_string();
                          for &i in &indices {
-                              let _ = teleport_to_friend_from_list(&self.clients[i], Some(&name), None, None).await;
+                              let _ = teleport_to_friend_from_list(&self.clients[i], None, None, Some(name.clone())).await;
                          }
                     }
                     TeleportKind::client_num => {
-                         let num_expr = if let InstructionData::Expression(e) = &args_data[1] { e } else { return Ok(()); };
-                         let num = self.eval(num_expr, Some(&self.clients[0])).await?.to_i32();
+                         let num_expr = if let InstructionData::Expression(e) = &args_data[1] { e.clone() } else { return Ok(()); };
+                         let num = self.eval(&num_expr, Some(0)).await?.to_i32();
                          if let Some(target) = self.player_by_num(num) {
                              if let Some(pos) = target.body_position() {
                                  for &i in &indices { let _ = self.clients[i].teleport(&pos); }
@@ -1396,18 +1418,18 @@ impl VM {
                          }
                     }
                     TeleportKind::plusteleport => {
-                         let pos_expr = if let InstructionData::Expression(e) = &args_data[1] { e } else { return Ok(()); };
+                         let pos_expr = if let InstructionData::Expression(e) = &args_data[1] { e.clone() } else { return Ok(()); };
                          for &i in &indices {
-                             let pluspos = self.eval(pos_expr, Some(&self.clients[i])).await?.to_xyz().unwrap_or_default();
+                             let pluspos = self.eval(&pos_expr, Some(i)).await?.to_xyz().unwrap_or_default();
                              let curpos = self.clients[i].body_position().unwrap_or_default();
                              let newpos = XYZ { x: curpos.x + pluspos.x, y: curpos.y + pluspos.y, z: curpos.z + pluspos.z };
                              let _ = self.clients[i].teleport(&newpos);
                          }
                     }
                     TeleportKind::minusteleport => {
-                         let pos_expr = if let InstructionData::Expression(e) = &args_data[1] { e } else { return Ok(()); };
+                         let pos_expr = if let InstructionData::Expression(e) = &args_data[1] { e.clone() } else { return Ok(()); };
                          for &i in &indices {
-                             let minuspos = self.eval(pos_expr, Some(&self.clients[i])).await?.to_xyz().unwrap_or_default();
+                             let minuspos = self.eval(&pos_expr, Some(i)).await?.to_xyz().unwrap_or_default();
                              let curpos = self.clients[i].body_position().unwrap_or_default();
                              let newpos = XYZ { x: curpos.x - minuspos.x, y: curpos.y - minuspos.y, z: curpos.z - minuspos.z };
                              let _ = self.clients[i].teleport(&newpos);
@@ -1419,8 +1441,9 @@ impl VM {
             "goto" => {
                  let pos_expr = if let InstructionData::Expression(e) = &args_data[0] { e } else { return Ok(()); };
                  for &i in &indices {
-                     let pos = self.eval(pos_expr, Some(&self.clients[i])).await?.to_xyz().unwrap_or_default();
-                     let _ = self.clients[i].goto(pos.x, pos.y);
+                     let pos_expr_inner = pos_expr.clone();
+                     let pos_val = self.eval(&pos_expr_inner, Some(i)).await?.to_xyz().unwrap_or_default();
+                     let _ = self.clients[i].goto(pos_val.x, pos_val.y);
                  }
             }
             "waitfor" => {
@@ -1458,8 +1481,8 @@ impl VM {
                          }
                      }
                      WaitforKind::window => {
-                         let path_expr = if let InstructionData::Expression(e) = &args_data[1] { e } else { return Ok(()); };
-                         let path_val = self.eval(path_expr, Some(&self.clients[0])).await?;
+                         let path_expr = if let InstructionData::Expression(e) = &args_data[1] { e.clone() } else { return Ok(()); };
+                         let path_val = self.eval(&path_expr, Some(0)).await?;
                          if let DeimosValue::List(l) = path_val {
                              let path: Vec<String> = l.into_iter().map(|v| v.to_string()).collect();
                              let path_refs: Vec<&str> = path.iter().map(|s| s.as_str()).collect();
@@ -1477,21 +1500,26 @@ impl VM {
                     if let InstructionData::Expression(e) = &args_data[1] { self.eval(e, None).await?.to_f64() } else { 0.1 }
                 } else { 0.1 };
                 for &i in &indices {
-                    let key_val = self.eval(key_expr, Some(&self.clients[i])).await?;
+                    let key_val = self.eval(key_expr, Some(i)).await?;
                     let key = if let DeimosValue::Keycode(kc) = key_val { kc } else { continue; };
                     let _ = self.clients[i].send_key(key);
                 }
             }
             "usepotion" => {
                  for &i in &indices {
-                      let _ = self.clients[i].mouse_handler.use_potion_if_needed(0).await;
+                      let _ = self.clients[i].mouse_handler.use_potion_if_needed(0, 0).await;
                  }
             }
             "buypotions" => {
-                 let if_needed = if let InstructionData::Expression(e) = &args_data[0] { self.eval(e, None).await?.is_truthy() } else { false };
+                 let mut if_needed = false;
+                 if !args_data.is_empty() {
+                    if let InstructionData::Expression(e) = &args_data[0] {
+                        if_needed = self.eval(e, None).await?.is_truthy();
+                    }
+                 }
                  for &i in &indices {
-                      if if_needed { refill_potions_if_needed(&self.clients[i]).await; }
-                      else { refill_potions(&self.clients[i], true, true).await; }
+                      if if_needed { refill_potions_if_needed(&self.clients[i], true, true, None).await; }
+                      else { refill_potions(&self.clients[i], true, true, None).await; }
                  }
             }
             "relog" => {
@@ -1503,15 +1531,17 @@ impl VM {
                 let cur_kind_val = if let InstructionData::Int(k) = &args_data[0] { *k } else { -1 };
                 match cur_kind_val {
                     0 => { // position
-                         let x = self.eval(if let InstructionData::Expression(e) = &args_data[1] { e } else { return Ok(()); }, Some(&self.clients[0])).await?.to_f64() as i32;
-                         let y = self.eval(if let InstructionData::Expression(e) = &args_data[2] { e } else { return Ok(()); }, Some(&self.clients[0])).await?.to_f64() as i32;
+                         let x_expr = if let InstructionData::Expression(e) = &args_data[1] { e.clone() } else { return Ok(()); };
+                         let y_expr = if let InstructionData::Expression(e) = &args_data[2] { e.clone() } else { return Ok(()); };
+                         let x = self.eval(&x_expr, Some(0)).await?.to_f64() as i32;
+                         let y = self.eval(&y_expr, Some(0)).await?.to_f64() as i32;
                          for &i in &indices {
-                             let _ = self.clients[i].mouse_handler.set_mouse_position(x, y).await;
+                             let _ = self.clients[i].mouse_handler.set_mouse_position(x, y, true, false).await;
                          }
                     }
                     1 => { // window
                          let path_expr = if let InstructionData::Expression(e) = &args_data[1] { e } else { return Ok(()); };
-                         let path_val = self.eval(path_expr, Some(&self.clients[0])).await?;
+                         let path_val = self.eval(path_expr, Some(0)).await?;
                          if let DeimosValue::List(l) = path_val {
                              let path: Vec<String> = l.into_iter().map(|v| v.to_string()).collect();
                              let path_refs: Vec<&str> = path.iter().map(|s| s.as_str()).collect();
@@ -1532,16 +1562,18 @@ impl VM {
                 let click_kind_val = if let InstructionData::Int(k) = &args_data[0] { *k } else { -1 };
                 match click_kind_val {
                     1 => { // position
-                         let x = self.eval(if let InstructionData::Expression(e) = &args_data[1] { e } else { return Ok(()); }, Some(&self.clients[0])).await?.to_f64() as i32;
-                         let y = self.eval(if let InstructionData::Expression(e) = &args_data[2] { e } else { return Ok(()); }, Some(&self.clients[0])).await?.to_f64() as i32;
+                         let x_expr = if let InstructionData::Expression(e) = &args_data[1] { e.clone() } else { return Ok(()); };
+                         let y_expr = if let InstructionData::Expression(e) = &args_data[2] { e.clone() } else { return Ok(()); };
+                         let x = self.eval(&x_expr, Some(0)).await?.to_f64() as i32;
+                         let y = self.eval(&y_expr, Some(0)).await?.to_f64() as i32;
                          for &i in &indices {
-                             let _ = self.clients[i].mouse_handler.click(x, y).await;
+                             let _ = self.clients[i].mouse_handler.click(x, y, false, 0.0, false).await;
                          }
                     }
                     0 => { // window
                          let path_expr = if let InstructionData::Expression(e) = &args_data[1] { e } else { return Ok(()); };
                          for &i in &indices {
-                             let path_val = self.eval(path_expr, Some(&self.clients[i])).await?;
+                             let path_val = self.eval(path_expr, Some(i)).await?;
                              if let DeimosValue::List(l) = path_val {
                                  let path: Vec<String> = l.into_iter().map(|v| v.to_string()).collect();
                                  let path_refs: Vec<&str> = path.iter().map(|s| s.as_str()).collect();
@@ -1554,7 +1586,7 @@ impl VM {
             }
             "tozone" => {
                  let path_expr = if let InstructionData::Expression(e) = &args_data[0] { e } else { return Ok(()); };
-                 let path_val = self.eval(path_expr, Some(&self.clients[0])).await?;
+                 let path_val = self.eval(path_expr, Some(0)).await?;
                  let zone_path = if let DeimosValue::List(l) = path_val {
                       l.into_iter().map(|v| v.to_string()).collect::<Vec<String>>().join("/")
                  } else { path_val.to_string() };
@@ -1564,7 +1596,7 @@ impl VM {
             }
             "select_friend" => {
                  let name_expr = if let InstructionData::Expression(e) = &args_data[0] { e } else { return Ok(()); };
-                 let name = self.eval(name_expr, Some(&self.clients[0])).await?.to_string();
+                 let name = self.eval(name_expr, Some(0)).await?.to_string();
                  for &i in &indices {
                       let _ = self.select_friend_from_list_vm(&self.clients[i], &name).await;
                  }
@@ -1594,17 +1626,22 @@ impl VM {
         let current_task_idx = self.scheduler.current_task_index;
         
         // Process untils
+        let mut exit_until = None;
         for i in (0..self.until_infos.len()).rev() {
-            let info = &self.until_infos[i];
-            if self.eval(&info.expr, None).await?.is_truthy() {
-                let exit_point = info.exit_point;
-                let stack_size = info.stack_size;
-                self.until_infos.truncate(i);
-                let task = &mut self.scheduler.tasks[current_task_idx];
-                task.ip = exit_point;
-                task.stack.truncate(stack_size);
-                return Ok(());
+            let expr = self.until_infos[i].expr.clone();
+            if self.eval(&expr, None).await?.is_truthy() {
+                exit_until = Some(i);
+                break;
             }
+        }
+
+        if let Some(i) = exit_until {
+            let info = self.until_infos[i].clone();
+            self.until_infos.truncate(i);
+            let task = &mut self.scheduler.tasks[current_task_idx];
+            task.ip = info.exit_point;
+            task.stack.truncate(info.stack_size);
+            return Ok(());
         }
 
         let task = &mut self.scheduler.tasks[current_task_idx];
@@ -1689,8 +1726,10 @@ impl VM {
             InstructionKind::write_stack => {
                 if let Some(InstructionData::List(data)) = instr.data {
                     if let [InstructionData::Int(offset), InstructionData::Expression(expr)] = data.as_slice() {
+                        let offset = *offset as usize;
                         let val = self.eval(expr, None).await?;
-                        task.stack[*offset as usize] = val;
+                        let task = &mut self.scheduler.tasks[self.scheduler.current_task_index];
+                        task.stack[offset] = val;
                         task.ip += 1;
                     }
                 }
@@ -1758,8 +1797,9 @@ impl VM {
                     if let [InstructionData::PlayerSelector(selector), InstructionData::Expression(expr)] = data.as_slice() {
                         let indices = self.select_players(selector);
                         for idx in indices {
-                            let val = self.eval(expr, Some(&self.clients[idx])).await?;
-                            debug!("{} - {}", self.clients[idx].title, val.to_string());
+                            let expr_clone = expr.clone();
+                            let val = self.eval(&expr_clone, Some(idx)).await?;
+                            debug!("{} - {}", self.clients[idx].title(), val.to_string());
                         }
                         self.scheduler.get_current_task_mut().ip += 1;
                     }
@@ -1768,15 +1808,10 @@ impl VM {
             InstructionKind::set_yaw => {
                 if let Some(InstructionData::List(data)) = instr.data {
                     if let [InstructionData::PlayerSelector(selector), InstructionData::Float(yaw)] = data.as_slice() {
-                        let indices = if selector.any_player && !self.any_player_client.is_empty() {
-                            self.any_player_client.clone()
-                        } else if selector.any_player {
-                            if self.clients.is_empty() { vec![] } else { vec![0] }
-                        } else {
-                            self.select_players(selector)
-                        };
+                        let yaw = *yaw;
+                        let indices = self.select_players_any(selector);
                         for idx in indices {
-                             let _ = self.clients[idx].body_write_yaw(*yaw as f32);
+                             let _ = self.clients[idx].body_write_yaw(yaw as f32);
                         }
                         self.scheduler.get_current_task_mut().ip += 1;
                     }
@@ -1784,7 +1819,7 @@ impl VM {
             }
             InstructionKind::load_playstyle => {
                 if let Some(InstructionData::String(playstyle)) = instr.data {
-                    let delegated = delegate_combat_configs(&playstyle, self.clients.len());
+                    let delegated = delegate_combat_configs(&playstyle, self.clients.len(), "");
                     for (i, config) in delegated {
                         if let Some(client) = self.clients.get_mut(i) {
                              // client.combat_config = config;
@@ -1804,6 +1839,7 @@ impl VM {
                 self.scheduler.get_current_task_mut().ip += 1;
             }
             InstructionKind::setdeck => {
+                use wizwalker::memory::objects::GameStats;
                 if let Some(InstructionData::List(data)) = instr.data {
                     if let [InstructionData::PlayerSelector(selector), InstructionData::String(token)] = data.as_slice() {
                         let indices = self.select_players(selector);
@@ -1821,6 +1857,7 @@ impl VM {
                 }
             }
             InstructionKind::getdeck => {
+                use wizwalker::memory::objects::GameStats;
                 if let Some(InstructionData::List(data)) = instr.data {
                     if let [InstructionData::PlayerSelector(selector)] = data.as_slice() {
                         let indices = self.select_players(selector);

@@ -54,6 +54,7 @@ impl std::fmt::Display for HookType {
 /// A live hook instance: tracks addresses and original bytes for cleanup.
 ///
 /// Created when a hook is activated, consumed when it's deactivated.
+#[derive(Clone)]
 pub struct HookInstance {
     pub hook_type: HookType,
     /// Address where the JMP instruction was written.
@@ -682,6 +683,7 @@ impl MovementTeleportHook {
 }
 
 /// Extended hook instance for MovementTeleportHook with JE restoration data.
+#[derive(Clone)]
 pub struct MovementTeleportHookInstance {
     pub base: HookInstance,
     pub je_forward: usize,
@@ -877,6 +879,7 @@ impl MouselessCursorMoveHook {
 }
 
 /// Extended hook instance for MouselessCursorMoveHook.
+#[derive(Clone)]
 pub struct MouselessCursorHookInstance {
     pub base: HookInstance,
     pub getclassinfo_addr: usize,

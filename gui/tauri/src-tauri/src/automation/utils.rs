@@ -888,6 +888,61 @@ pub fn pid_to_client(clients: &[Client], pid: u32) -> Option<&Client> {
     clients.iter().find(|c| c.process_id == pid)
 }
 
+pub async fn teleport_to_friend_from_list(
+    client: &Client,
+    icon_list: Option<i32>,
+    icon_index: Option<i32>,
+    name: Option<String>,
+) -> Result<(), String> {
+    // Open friends list if not open
+    if !is_visible_by_path(client, &["NewFriendsListWindow"]) {
+        client.send_key(Keycode::F);
+        sleep(Duration::from_millis(500)).await;
+    }
+
+    let root = match &client.root_window {
+        Some(rw) => &rw.window,
+        None => return Err("Root window not found".to_string()),
+    };
+
+    let friends_window = get_window_from_path(root, &["NewFriendsListWindow"])
+        .ok_or_else(|| "Could not find friends window".to_string())?;
+
+    let friends_list = get_window_from_path(&friends_window, &["listFriends"])
+        .ok_or_else(|| "Could not find friends list".to_string())?;
+
+    if let Some(n) = name {
+        for i in 0..10 {
+            let f_name = format!("Friend{}", i);
+            if let Some(f_btn) = get_window_from_path(&friends_list, &[&f_name]) {
+                let text = f_btn.maybe_text().unwrap_or_default();
+                if text.to_lowercase().contains(&n.to_lowercase()) {
+                    let _ = client.mouse_handler.click_window(&f_btn, false).await;
+                    sleep(Duration::from_millis(500)).await;
+                    if let Some(tp) = get_window_from_path(root, &["wndCharacter", "ButtonLayout", "btnTeleport"]) {
+                        let _ = client.mouse_handler.click_window(&tp, false).await;
+                        return Ok(());
+                    }
+                }
+            }
+        }
+    } else {
+        if let Some(f_btn) = get_window_from_path(&friends_list, &["Friend0"]) {
+            let _ = client.mouse_handler.click_window(&f_btn, false).await;
+            sleep(Duration::from_millis(500)).await;
+            if let Some(tp) = get_window_from_path(root, &["wndCharacter", "ButtonLayout", "btnTeleport"]) {
+                let _ = client.mouse_handler.click_window(&tp, false).await;
+                return Ok(());
+            }
+        }
+    }
+
+    // close friends window
+    client.send_key(Keycode::F);
+
+    Err("Friend not found or teleport failed".to_string())
+}
+
 pub async fn generate_tfc(client: &Client) -> Option<String> {
     for _ in 0..5 {
         let _ = click_window_by_path(client, paths::CLOSE_REAL_FRIEND_LIST_BUTTON_PATH).await;

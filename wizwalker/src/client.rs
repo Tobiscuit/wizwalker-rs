@@ -59,6 +59,7 @@ pub struct Client {
 
 // SAFETY: HWND and HANDLE are raw kernel handles; safe to send between threads.
 unsafe impl Send for Client {}
+unsafe impl Sync for Client {}
 
 impl Client {
     // ── Construction ────────────────────────────────────────────────
@@ -236,6 +237,16 @@ impl Client {
             }
             Err(_) => false,
         }
+    }
+
+    pub fn is_in_dialog(&self) -> bool {
+        let Some(root) = &self.root_window else { return false; };
+        if let Ok(wins) = root.window.get_windows_with_name("advance_dialog") {
+             for w in wins {
+                 if w.is_visible().unwrap_or(false) { return true; }
+             }
+        }
+        false
     }
 
     /// Current zone name, if available.
@@ -695,6 +706,41 @@ impl Client {
         Some(crate::types::XYZ { x, y, z })
     }
 
+    pub fn body(&self) -> Option<crate::memory::objects::actor_body::ActorBody<crate::memory::process_reader::ProcessMemoryReader>> {
+        let player_base = self.hook_handler.read_current_player_base().ok()?;
+        let reader = self.process_reader()?;
+        Some(crate::memory::objects::actor_body::ActorBody::new(reader, player_base as u64))
+    }
+
+    pub fn stats(&self) -> Option<crate::memory::objects::game_stats::DynamicGameStats> {
+        let stat_base = self.hook_handler.read_current_player_stat_base().ok()?;
+        let reader = self.reader()?;
+        crate::memory::objects::game_stats::DynamicGameStats::new(reader, stat_base as u64).ok()
+    }
+
+    pub fn game_client(&self) -> Option<crate::memory::objects::game_client::GameClient<crate::memory::process_reader::ProcessMemoryReader>> {
+        let client_base = self.hook_handler.read_current_client_base().ok()?;
+        let reader = self.process_reader()?;
+        Some(crate::memory::objects::game_client::GameClient::new(reader, client_base as u64))
+    }
+
+    pub fn quest_id(&self) -> Result<u32> {
+        let client_base = self.hook_handler.read_current_client_base()?;
+        let reader = self.process_reader().ok_or(WizWalkerError::Other("Reader not attached".into()))?;
+        reader.read_typed::<u32>(client_base + 416)
+    }
+
+    pub fn quest_manager(&self) -> Result<crate::memory::objects::quest_client_manager::QuestClientManager> {
+        let client_base = self.hook_handler.read_current_client_base()?;
+        let reader = self.process_reader().ok_or(WizWalkerError::Other("Reader not attached".into()))?;
+        let qm_ptr: u64 = reader.read_typed(client_base + 408)?;
+        if let Ok(inner) = DynamicMemoryObject::new(self.reader().unwrap(), qm_ptr) {
+             Ok(crate::memory::objects::quest_client_manager::QuestClientManager::new(inner))
+        } else {
+             Err(WizWalkerError::Other("Failed to create DynamicMemoryObject for QuestClientManager".into()))
+        }
+    }
+
     /// Get a mutable reference to the hook handler.
     pub fn hook_handler_mut(&mut self) -> &mut HookHandler {
         &mut self.hook_handler
@@ -705,10 +751,61 @@ impl Client {
     /// Python: `await self.stats.current_mana()` — offset 136 from stat base.
     /// (Offset 116 is current_gold, 136 is current_mana per game_stats.py)
     pub fn stats_current_mana(&self) -> Option<i32> {
+        use crate::memory::objects::game_stats::GameStats;
+        self.stats()?.current_mana().ok()
+    }
+
+    pub fn stats_current_hitpoints(&self) -> Option<i32> {
+        use crate::memory::objects::game_stats::GameStats;
+        self.stats()?.current_hitpoints().ok()
+    }
+
+    pub fn stats_max_hitpoints(&self) -> Option<i32> {
+        use crate::memory::objects::game_stats::GameStats;
+        self.stats()?.max_hitpoints().ok()
+    }
+
+    pub fn stats_max_mana(&self) -> Option<i32> {
+        use crate::memory::objects::game_stats::GameStats;
+        self.stats()?.max_mana().ok()
+    }
+
+    pub fn stats_current_energy(&self) -> Option<i32> {
         let stat_base = self.hook_handler.read_current_player_stat_base().ok()?;
         let reader = self.process_reader()?;
-        let mana: i32 = reader.read_typed(stat_base + 136).ok()?;
-        Some(mana)
+        // energy_current is not explicitly in GameStats trait yet?
+        // Let's check common offsets. Python: offset 140 is current_energy
+        reader.read_typed::<i32>(stat_base + 140).ok()
+    }
+
+    pub fn stats_current_gold(&self) -> Option<i32> {
+        use crate::memory::objects::game_stats::GameStats;
+        self.stats()?.current_gold().ok()
+    }
+
+    pub fn stats_potion_charge(&self) -> Option<f32> {
+        use crate::memory::objects::game_stats::GameStats;
+        self.stats()?.potion_charge().ok()
+    }
+
+    pub fn stats_potion_max(&self) -> Option<f32> {
+        use crate::memory::objects::game_stats::GameStats;
+        self.stats()?.potion_max().ok()
+    }
+
+    pub fn stats_reference_level(&self) -> Option<i32> {
+        use crate::memory::objects::game_stats::GameStats;
+        self.stats()?.reference_level().ok()
+    }
+
+    pub fn backpack_space(&self) -> Option<(i32, i32)> {
+        let client_base = self.hook_handler.read_current_client_base().ok()?;
+        let reader = self.process_reader()?;
+        let inv_ptr: u64 = reader.read_typed(client_base + 368).ok()?;
+        if inv_ptr == 0 { return None; }
+        let current: i32 = reader.read_typed(inv_ptr as usize + 80).ok()?;
+        let max: i32 = reader.read_typed(inv_ptr as usize + 84).ok()?;
+        Some((current, max))
     }
 
     /// Read a wide (UTF-16) string from a memory address.
